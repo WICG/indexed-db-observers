@@ -87,10 +87,10 @@
     }
 
     // does mixed add, put, and delete operations.
-    function doMixedOperations() {
+    function doMixedOperations(objectStore) {
       return function(db) {
-        var tx = db.transaction(['objectStore1'], 'readwrite');
-        var s1 = tx.objectStore('objectStore1');
+        var tx = db.transaction([objectStore], 'readwrite');
+        var s1 = tx.objectStore(objectStore);
         s1.add('val1', 1);
         s1.add('val2', 2);
         s1.add('val3', 3);
@@ -106,10 +106,10 @@
       };
     }
     // does put operations
-    function doPutOperations() {
+    function doPutOperations(objectStore) {
       return function(db) {
-        var tx = db.transaction(['objectStore1'], 'readwrite');
-        var s1 = tx.objectStore('objectStore1');
+        var tx = db.transaction([objectStore], 'readwrite');
+        var s1 = tx.objectStore(objectStore);
         s1.put('putVal1', 1);
         s1.put('putVal2', 2);
         return new Promise(function(resolve, reject) {
@@ -123,15 +123,33 @@
 
     function main() {
       var dbname = 'db' + Date.now();
-      var o1 = observer("observer1");
-      var o2 = observer("observer2");
-      openDb(dbname, ['objectStore1', 'os2'])
-          .then(startObserver('objectStore1', o1))
-          .then(doMixedOperations())
-          .then(startObserver('objectStore1', o2))
-          .then(doPutOperations())
-          .then(stopObserver('objectStore1', o1))
-          .then(function(db) { db.close(); });
+      var obs1 = observer("observer1");
+      var obs2 = observer("observer2");
+      var obs3 = observer("observer3");
+
+      var osName1 = 'objectStore1';
+      var osName2 = 'os2';
+      openDb(dbname, [osName1, osName2])
+          .then(startObserver(osName1, obs1))
+          .then(doMixedOperations(osName1))
+          .then(startObserver(osName1, obs2))
+          .then(doPutOperations(osName1))
+          .then(stopObserver(osName1, obs1))
+          .then(doPutOperations(osName1))
+          .then(doPutOperations(osName2))
+          .then(function(db) {
+            log("closing connection 1"); 
+            db.close(); 
+          });
+
+      openDb(dbname, [osName1, osName2])
+          .then(startObserver(osName2, obs3))
+          .then(doMixedOperations(osName2))
+          .then(doPutOperations(osName2))
+          .then(function(db) { 
+            log("closing connection 2"); 
+            db.close(); 
+          });
     }
     main();
   </script>
