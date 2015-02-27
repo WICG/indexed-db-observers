@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <style>
+    #js-log {
+      min-height: 300px;
+      max-height: 800px;
+      width: 95%;
+      overflow-y: scroll;
+      color: white;
+      background: black;
+      font-family: monospace;
+      line-height: 150%;
+      font-size: 12px;
+      padding: 7px;
+      padding-right: 0px;
+    }
+  </style>
+  </head>
+  <body>
+  <div id="log-wrapper">
+    <div><b>&nbsp;&nbsp;Page Log</b></div>
+    <div id="js-log"> </div>
+  </div>
+  <script src="indexed-db-observers-polyfill.js"></script>
+  <script>
+    function log() {
+      console.log.apply(console, arguments);
+      var el = document.createElement('div');
+      el.innerHTML = Array.prototype.join.call(
+        Array.prototype.map.call(arguments, function(x) { return "> " + x; }),
+        '<br />');
+      document.getElementById('js-log').appendChild(el);
+    }
+    // returns a promise that resolves with the database
+    function openDb(name, objectStores) {
+      var req = indexedDB.open(name);
+      req.onupgradeneeded = function() {
+        var db = req.result;
+        for (var index in objectStores) {
+          log('Creating object store ' + objectStores[index] + ' in database ' + name);
+          db.createObjectStore(objectStores[index]);
+        }
+      }
+      return new Promise(function(resolve, reject) {
+        req.onsuccess = function() {
+          resolve(req.result);
+        }
+        req.onerror = reject;
+      });
+    } 
+
+    // returns function that accepts the database, for use with promise chain
+    // the database is passed on
+    function startObserver(objectStoreName, fcn) {
+      return function(db) {
+        var tx = db.transaction([objectStoreName], 'readonly');
+        tx.objectStore(objectStoreName).startObservingChanges(fcn);
+        return new Promise(function(resolve, reject) {
+          tx.oncomplete = function() {
+            resolve(db);
+          };
+          tx.onerror = reject;
+        })
+      };
+    }
+
+    // returns function that accepts the database, for use with promise chain
+    // the database is passed on
+    function stopObserver(objectStoreName, fcn) {
+      return function(db) {
+        var tx = db.transaction([objectStoreName], 'readonly');
+        tx.objectStore(objectStoreName).stopObservingChanges(fcn);
+        return new Promise(function(resolve, reject) {
+          tx.oncomplete = function() {
+            resolve(db);
+          };
+          tx.onerror = reject;
+        })
+      };
+    }
+
+    var observer = function(name) {
+      return function(e) {
+        log(name + ' saw changes: ' + JSON.stringify(e));
+      }
+    }
+
+    // does mixed add, put, and delete operations.
+    function doMixedOperations() {
+      return function(db) {
+        var tx = db.transaction(['objectStore1'], 'readwrite');
+        var s1 = tx.objectStore('objectStore1');
+        s1.add('val1', 1);
+        s1.add('val2', 2);
+        s1.add('val3', 3);
+        s1.add('val99', 99);
+        s1.put('putVal3', 3);
+        s1.delete(IDBKeyRange.bound(90, 100))
+        return new Promise(function(resolve, reject) {
+          tx.oncomplete = function() {
+            resolve(db);
+          };
+          tx.onerror = reject;
+        })
+      };
+    }
+    // does put operations
+    function doPutOperations() {
+      return function(db) {
+        var tx = db.transaction(['objectStore1'], 'readwrite');
+        var s1 = tx.objectStore('objectStore1');
+        s1.put('putVal1', 1);
+        s1.put('putVal2', 2);
+        return new Promise(function(resolve, reject) {
+          tx.oncomplete = function() {
+            resolve(db);
+          };
+          tx.onerror = reject;
+        })
+      };
+    }
+
+    function main() {
+      var dbname = 'db' + Date.now();
+      var o1 = observer("observer1");
+      var o2 = observer("observer2");
+      openDb(dbname, ['objectStore1', 'os2'])
+          .then(startObserver('objectStore1', o1))
+          .then(doMixedOperations())
+          .then(startObserver('objectStore1', o2))
+          .then(doPutOperations())
+          .then(stopObserver('objectStore1', o1))
+          .then(function(db) { db.close(); });
+    }
+    main();
+  </script>
+  </body>
+</html>
