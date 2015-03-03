@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<link rel="stylesheet" type="text/css" href="examples-style.css">
+<div>
+  <h1>IndexedDB Observers Example</h1>
+  <h2>Basic Observing</h2>
+  <p>This example shows observering basic indexedDb operations:
+  <ul>
+    <li>add
+    <li>put
+    <li>delete
+  </ul>
+  </p>
+</div>
+<div id="log-wrapper">
+  <div><b>&nbsp;&nbsp;Page Log</b></div>
+  <div id="js-log"> </div>
+</div>
+<script src="../polyfill.js"></script>
+<script>
+  function log() {
+    console.log.apply(console, arguments);
+    var el = document.createElement('div');
+    el.innerHTML = Array.prototype.join.call(
+      Array.prototype.map.call(arguments, function(x) { return "> " + x; }),
+      '<br />');
+    document.getElementById('js-log').appendChild(el);
+  }
+
+  var dbname = 'db' + Date.now();
+  var osname = 'objectStore';
+  var db1;
+
+  function step1() { 
+    log("Step 1: Create database connection 1 with observer");
+    var req = indexedDB.open(dbname);
+    req.onupgradeneeded = function() {
+      db1 = req.result;
+      db1.createObjectStore(osname);
+    };
+    req.onsuccess = function() {
+      db1 = req.result;
+      log("Database connection 1 created.")
+      var txn = db1.transaction(osname, 'readwrite');
+      txn.objectStore(osname).startObservingChanges(function(changes) {
+        log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
+      });
+      txn.oncomplete = step2;
+      txn.onerror = log;
+    }; 
+  }
+
+  function step2() {
+    log("Step 2: Doing add and put operations. (Notice the overlapping add and put).");
+    var txn = db1.transaction(osname, 'readwrite');
+    var store = txn.objectStore(osname);
+    store.add('val1', 1);
+    store.add('val2', 2);
+    store.add('val3', 3);
+    store.add('val4', 4);
+    store.put('putVal4', 4);
+    txn.oncomplete = step3;
+    txn.onerror = log;
+  }
+
+  function step3() {
+    log("Step 3: Doing delete operations.");
+    var txn = db1.transaction(osname, 'readwrite');
+    var store = txn.objectStore(osname);
+    store.delete(IDBKeyRange.bound(0, 2));
+    txn.oncomplete = done;
+    txn.onerror = log;
+  }
+
+  function done() {
+    log("Done!");
+  }
+  step1();
+</script>
+<div>
+  <p>All examples:
+    <ul>
+    <li><a href="basic-observing-example.html">Basic Observing Example</a>
+    <li><a href="start-stop-example.html">Starting and Stopping Observers</a>
+    <li><a href="multiple-connections-example.html">Observing Across Multiple Connections</a>
+    </ul>
+  </p>
+</div>
+<div>
+  | <a href="https://github.com/dmurph/indexed-db-observers"
+</div>Project Page</a> | <a href="https://dmurph.github.io/indexed-db-observers/">Examples</a> |
+</div>

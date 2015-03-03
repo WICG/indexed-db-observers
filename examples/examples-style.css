@@ -1,0 +1,13 @@
+#js-log {
+  min-height: 300px;
+  max-height: 800px;
+  width: 95%;
+  overflow-y: scroll;
+  color: white;
+  background: black;
+  font-family: monospace;
+  line-height: 150%;
+  font-size: 12px;
+  padding: 7px;
+  padding-right: 0px;
+}
