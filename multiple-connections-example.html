@@ -56,8 +56,8 @@
         db1 = req.result;
         log("Database connection 1 created.")
         var txn = db1.transaction(osname, 'readwrite');
-        txn.objectStore(osname).startObservingChanges(function(event) {
-          log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(event));
+        txn.objectStore(osname).startObservingChanges(function(changes) {
+          log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
         });
         txn.oncomplete = step2;
         txn.onerror = log;

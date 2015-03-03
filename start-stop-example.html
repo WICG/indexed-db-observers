@@ -44,8 +44,8 @@
     var osname = 'objectStore';
     var db1;
 
-    function observerFunction(event) {
-      log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(event));
+    function observerFunction(changes) {
+      log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
     }
 
     function step1() { 

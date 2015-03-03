@@ -29,6 +29,9 @@
       return;
     }
     var index = list.indexOf(fcn);
+    if (index === -1) {
+      return;
+    }
     list.splice(index, 1);
   };
 
