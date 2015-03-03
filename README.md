@@ -2,7 +2,7 @@
 Prototyping and discussion around indexeddb observers.
 Please file an issue if you have any feedback :)
 
-## Objective
+# Objective
 IndexedDB needs a way to observe changes.  This project is for exploring API changes to make this possible.  Everything here is up for discussion, please file an issue if you have any feedback.
 
 I want to solve the following use cases:
@@ -11,9 +11,8 @@ I want to solve the following use cases:
 
 TODO: Write testharness.js
 
-## API Additions
-These are the following additions to the IndexedDB API:
-### IDBObjectStore.startObservingChanges(function(changes))
+# API Additions
+### IDBObjectStore.startObservingChanges(function(changes){...})
 ```
 function observerFunction(changes) {
   console.log("Observer received changes: " + JSON.stringify(changes));
@@ -32,7 +31,8 @@ The passed function will be called whenever a transaction is successfully comple
  * key: The key or key range of the operation
 
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stopObservingChanges` is called.
-### IDBObjectStore.stopObservingChanges(function(changes))
+
+### IDBObjectStore.stopObservingChanges(function(changes){...})
 ```
 // ... assuming the above code was called, where db and observerFunction are defined
 var txn = db.transaction(['objectStore'], 'readwrite');
@@ -40,11 +40,11 @@ txn.objectStore('objectStore').stopObservingChanges(observerFunction);
 ```
 This removes the given function as an observer of the object store.
 
-## Examples
+# Examples
 See the html files for examples, hosted here:
 https://dmurph.github.io/indexed-db-observers/ 
 
-## Open Issues
+# Open Issues
 ### Observing a key range
 Should we allow observing just a key range instead of the whole object store?
 
@@ -87,14 +87,14 @@ OR we can have transform this into the **unordered/disjoint** change list
 
 Personally, I vote for **culling** but not transforming to the disjoint list.  If the developer wants, they can transform the ordered culled list to the unordered version, but they wouldn't be able to transform the other way.
 
-## FAQ
+# FAQ
 ### Why create the observer in a transaction?
 The observer needs to have a 'true' state of the world when it starts observing.  It shouldn't observe from the middle of another transaction that could fail or abort.  So we need to register the observer in a transaction to guarentee that we start observing from an unchanging state of the world.
 
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return.  Instead we can store range delete metadata to shortcut these operations when it makes sense.  Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
 
-## Try it out!
+# Try it out!
 Import the polyfill to try it out:
 ```
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
