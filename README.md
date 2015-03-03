@@ -14,7 +14,7 @@ Create your database like normal, and then add your observer:
 ```
 var txn = db.transaction(['objectStore'], 'readwrite');
 txn.objectStore('objectStore').startObservingChanges(function(changes) {
-  console.("Observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
+  console.("Observer received changes: " + JSON.stringify(changes));
 });
 ```
 ## API Additions
