@@ -4,6 +4,8 @@
 
   var addOpenDatabase = function(db, name){
     db._listeners = {};
+    db._openTransactions = 0;
+    db._closePending = false;
     connections[name] = connections[name] || [];
     connections[name].push(db);
   };
@@ -64,7 +66,11 @@
   var $close = IDBDatabase.prototype.close;
   IDBDatabase.prototype.close = function() {
     $close.apply(this, arguments);
-    closeDatabase(this);
+    if (this._openTransactions === 0) {
+      closeDatabase(this);
+    } else {
+      this._closePending = true;
+    }
   };
   
   var $transaction = IDBDatabase.prototype.transaction;
@@ -72,6 +78,7 @@
     var tx = $transaction.apply(this, arguments);
     if (mode !== 'readwrite') return tx;
     tx._changes = [];
+    tx.db._openTransactions += 1;
     tx.addEventListener('complete', function() {
       var changes = tx._changes;
       tx._changes = [];
@@ -81,7 +88,17 @@
           listeners[index](changes[objectStoreName]);
         }
       }
+      tx.db._openTransactions -= 1;
+      if (tx.db._closePending) {
+        closeDatabase(tx.db);
+      }
     });
+    tx.addEventListener('abort', function() {
+      tx.db._openTransactions -= 1;
+      if (tx.db._closePending) {
+        closeDatabase(tx.db);
+      }
+    })
     return tx;
   };
  

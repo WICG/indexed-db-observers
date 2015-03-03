@@ -19,11 +19,11 @@
   </head>
   <body>
   <div>
-  <h1>IndexedDB Observers Example</h1>
-  <h2>Multiple Database Connections</h2>
-  <p>
-  This example shows how observers from one database connection can observe changes from another connection. One can imagine this is from two different browser tabs (the polyfill is only per-tab, unfortunately).
-  </p>
+    <h1>IndexedDB Observers Example</h1>
+    <h2>Starting and Stopping Observers</h2>
+    <p>
+      This example shows starting and stopping observers.
+    </p>
   </div>
   <div id="log-wrapper">
     <div><b>&nbsp;&nbsp;Page Log</b></div>
@@ -43,7 +43,10 @@
     var dbname = 'db' + Date.now();
     var osname = 'objectStore';
     var db1;
-    var db2;
+
+    function observerFunction(event) {
+      log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(event));
+    }
 
     function step1() { 
       log("Step 1: Create database connection 1 with observer");
@@ -54,46 +57,37 @@
       };
       req.onsuccess = function() {
         db1 = req.result;
-        log("Database connection 1 created.")
+        log("Database connection 1 created.");
         var txn = db1.transaction(osname, 'readwrite');
-        txn.objectStore(osname).startObservingChanges(function(event) {
-          log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(event));
-        });
+        txn.objectStore(osname).startObservingChanges(observerFunction);
         txn.oncomplete = step2;
         txn.onerror = log;
       }; 
     }
 
     function step2() {
-      log("Step 2: Create database connection 2 and make change.");
-      var req = indexedDB.open(dbname);
-      req.onupgradeneeded = function() {
-        db2 = req.result;
-        db2.createObjectStore(osname);
-      };
-      req.onsuccess = function() {
-        db2 = req.result;
-        log("Database connection 2 created.");
-        var txn = db2.transaction(osname, 'readwrite');
-        var store = txn.objectStore(osname);
-        store.add('val1', 1);
-        txn.oncomplete = step3;
-        txn.onerror = log;
-      }; 
+      log("Step 2: Doing add operations which <u>should</u> be observed.");
+      var txn = db1.transaction(osname, 'readwrite');
+      var store = txn.objectStore(osname);
+      store.add('val1', 1);
+      store.add('val2', 2);
+      txn.oncomplete = step3;
+      txn.onerror = log;
     }
-
     function step3() {
-      log("Step 3: Close connnection 1, which disconnects observer 1.");
-      db1.close();
-      log("Database connection 1 closed, waiting for 1 second for transactions to finish.");
-      setTimeout(step4, 1000);
+      log("Step 3: Removing observer.");
+      var txn = db1.transaction(osname, 'readwrite');
+      txn.objectStore(osname).stopObservingChanges(observerFunction);
+      txn.oncomplete = step4;
+      txn.onerror = log;
     }
 
     function step4() {
-      log("Step 4: Make change with database connection 2.  Observer should not see any changes.");
-      var txn = db2.transaction(osname, 'readwrite');
+      log("Step 4: Doing add operations which <u>should not</u> be observed.");
+      var txn = db1.transaction(osname, 'readwrite');
       var store = txn.objectStore(osname);
-      store.add('val2', 2);
+      store.add('val3', 3);
+      store.add('val4', 4);
       txn.oncomplete = done;
       txn.onerror = log;
     }
@@ -101,6 +95,7 @@
     function done() {
       log("Done!");
     }
+
     step1();
   </script>
   </body>

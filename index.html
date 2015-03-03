@@ -100,7 +100,7 @@
         s1.add('val3', 3);
         s1.add('val99', 99);
         s1.put('putVal3', 3);
-        s1.delete(IDBKeyRange.bound(90, 100))
+        s1.delete(IDBKeyRange.bound(90, 100));
         return new Promise(function(resolve, reject) {
           tx.oncomplete = function() {
             resolve(db);

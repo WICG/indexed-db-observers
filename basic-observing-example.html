@@ -19,11 +19,16 @@
   </head>
   <body>
   <div>
-  <h1>IndexedDB Observers Example</h1>
-  <h2>Multiple Database Connections</h2>
-  <p>
-  This example shows how observers from one database connection can observe changes from another connection. One can imagine this is from two different browser tabs (the polyfill is only per-tab, unfortunately).
-  </p>
+    <h1>IndexedDB Observers Example</h1>
+    <h2>Basic Observing</h2>
+    <p>
+    This example shows observering basic indexedDb operations:
+    <ul>
+      <li>add
+      <li>put
+      <li>delete
+    </ul>
+    </p>
   </div>
   <div id="log-wrapper">
     <div><b>&nbsp;&nbsp;Page Log</b></div>
@@ -43,7 +48,6 @@
     var dbname = 'db' + Date.now();
     var osname = 'objectStore';
     var db1;
-    var db2;
 
     function step1() { 
       log("Step 1: Create database connection 1 with observer");
@@ -65,35 +69,23 @@
     }
 
     function step2() {
-      log("Step 2: Create database connection 2 and make change.");
-      var req = indexedDB.open(dbname);
-      req.onupgradeneeded = function() {
-        db2 = req.result;
-        db2.createObjectStore(osname);
-      };
-      req.onsuccess = function() {
-        db2 = req.result;
-        log("Database connection 2 created.");
-        var txn = db2.transaction(osname, 'readwrite');
-        var store = txn.objectStore(osname);
-        store.add('val1', 1);
-        txn.oncomplete = step3;
-        txn.onerror = log;
-      }; 
+      log("Step 2: Doing add and put operations. (Notice the overlapping add and put).");
+      var txn = db1.transaction(osname, 'readwrite');
+      var store = txn.objectStore(osname);
+      store.add('val1', 1);
+      store.add('val2', 2);
+      store.add('val3', 3);
+      store.add('val4', 4);
+      store.put('putVal4', 4);
+      txn.oncomplete = step3;
+      txn.onerror = log;
     }
 
     function step3() {
-      log("Step 3: Close connnection 1, which disconnects observer 1.");
-      db1.close();
-      log("Database connection 1 closed, waiting for 1 second for transactions to finish.");
-      setTimeout(step4, 1000);
-    }
-
-    function step4() {
-      log("Step 4: Make change with database connection 2.  Observer should not see any changes.");
-      var txn = db2.transaction(osname, 'readwrite');
+      log("Step 3: Doing delete operations.");
+      var txn = db1.transaction(osname, 'readwrite');
       var store = txn.objectStore(osname);
-      store.add('val2', 2);
+      store.delete(IDBKeyRange.bound(0, 2));
       txn.oncomplete = done;
       txn.onerror = log;
     }
