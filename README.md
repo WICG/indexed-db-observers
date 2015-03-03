@@ -1,5 +1,6 @@
 # indexed-db-observers
 Prototyping and discussion around indexeddb observers.
+Please file an issue if you have any feedback :)
 
 ## Objective
 IndexedDB needs a way to observe changes.  This project is for exploring API changes to make this possible.  Everything here is up for discussion.
