@@ -58,6 +58,7 @@
         tx.objectStore(objectStoreName).startObservingChanges(fcn);
         return new Promise(function(resolve, reject) {
           tx.oncomplete = function() {
+            log('Started observing ' + objectStoreName);
             resolve(db);
           };
           tx.onerror = reject;
@@ -69,10 +70,12 @@
     // the database is passed on
     function stopObserver(objectStoreName, fcn) {
       return function(db) {
+        log('Put operations to object store ' + objectStoreName);
         var tx = db.transaction([objectStoreName], 'readonly');
         tx.objectStore(objectStoreName).stopObservingChanges(fcn);
         return new Promise(function(resolve, reject) {
           tx.oncomplete = function() {
+            log('Stopped observing ' + objectStoreName);
             resolve(db);
           };
           tx.onerror = reject;
@@ -82,15 +85,16 @@
 
     var observer = function(name) {
       return function(e) {
-        log(name + ' saw changes: ' + JSON.stringify(e));
+        log(name + ' saw changes: <br/>&nbsp;&nbsp;' + JSON.stringify(e));
       }
     }
 
     // does mixed add, put, and delete operations.
-    function doMixedOperations(objectStore) {
+    function doMixedOperations(objectStoreName) {
       return function(db) {
-        var tx = db.transaction([objectStore], 'readwrite');
-        var s1 = tx.objectStore(objectStore);
+        log('Mixed operations to object store ' + objectStoreName);
+        var tx = db.transaction([objectStoreName], 'readwrite');
+        var s1 = tx.objectStore(objectStoreName);
         s1.add('val1', 1);
         s1.add('val2', 2);
         s1.add('val3', 3);
@@ -123,9 +127,9 @@
 
     function main() {
       var dbname = 'db' + Date.now();
-      var obs1 = observer("observer1");
-      var obs2 = observer("observer2");
-      var obs3 = observer("observer3");
+      var obs1 = observer("observer1 (os1)");
+      var obs2 = observer("observer2 (os1)");
+      var obs3 = observer("observer3 (os2)");
 
       var osName1 = 'objectStore1';
       var osName2 = 'os2';

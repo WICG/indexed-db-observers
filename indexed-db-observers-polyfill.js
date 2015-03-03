@@ -30,6 +30,13 @@
     list.splice(index, 1);
   };
 
+  var createOperationObject = function(type, keyOrRange) {
+    if (!keyOrRange) {
+      return { type: type };
+    }
+    return { type: type, key: keyOrRange };
+  };
+
   var getListeners = function(dbName, objectStoreName) {
     if (!connections[dbName]) {
       return [];
@@ -92,7 +99,7 @@
     request.addEventListener('success', function() {
       var key = request.result;
       $this.transaction._changes[$this.name] = $this.transaction._changes[$this.name] || [];
-      $this.transaction._changes[$this.name].push([$this.name, 'put', key]);
+      $this.transaction._changes[$this.name].push(createOperationObject('put', key));
     });
     return request;
   };
@@ -104,7 +111,7 @@
     request.addEventListener('success', function() {
       var key = request.result;
       $this.transaction._changes[$this.name] = $this.transaction._changes[$this.name] || [];
-      $this.transaction._changes[$this.name].push([$this.name, 'add', key]);
+      $this.transaction._changes[$this.name].push(createOperationObject('add', key));
     });
     return request;
   };
@@ -115,7 +122,7 @@
     var request = $delete.apply(this, arguments);
     request.addEventListener('success', function() {
       $this.transaction._changes[$this.name] = $this.transaction._changes[$this.name] || [];
-      $this.transaction._changes[$this.name].push([$this.name, 'delete', key_or_range]);
+      $this.transaction._changes[$this.name].push(createOperationObject('delete', key_or_range));
     });
     return request;
   };
@@ -126,7 +133,7 @@
     var request = $clear.apply(this, arguments);
     request.addEventListener('success', function() {
       $this.transaction._changes[$this.name] = $this.transaction._changes[$this.name] || [];
-      $this.transaction._changes[$this.name].push([$this.name, 'clear']);
+      $this.transaction._changes[$this.name].push(createOperationObject('clear'));
     });
     return request;
   };
@@ -143,7 +150,7 @@
     request.addEventListener('success', function() {
       var store = effectiveStore($this);
       store.transaction._changes[store.name] = store.transaction._changes[store.name] || [];
-      store.transaction._changes[store.name].push([store.name, 'update', key]);
+      store.transaction._changes[store.name].push(createOperationObject('put', key));
     });
     return request;
   };
@@ -156,7 +163,7 @@
     request.addEventListener('success', function() {
       var store = effectiveStore($this);
       store.transaction._changes[store.name] = store.transaction._changes[store.name] || [];
-      store.transaction._changes[store.name].push([store.name, 'delete', key]);
+      store.transaction._changes[store.name].push(createOperationObject('delete', key));
     });
     return request;
   };

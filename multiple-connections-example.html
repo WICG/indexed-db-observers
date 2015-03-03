@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <style>
+    #js-log {
+      min-height: 300px;
+      max-height: 800px;
+      width: 95%;
+      overflow-y: scroll;
+      color: white;
+      background: black;
+      font-family: monospace;
+      line-height: 150%;
+      font-size: 12px;
+      padding: 7px;
+      padding-right: 0px;
+    }
+  </style>
+  </head>
+  <body>
+  <div id="log-wrapper">
+    <div><b>&nbsp;&nbsp;Page Log</b></div>
+    <div id="js-log"> </div>
+  </div>
+  <script src="indexed-db-observers-polyfill.js"></script>
+  <script>
+    function log() {
+      console.log.apply(console, arguments);
+      var el = document.createElement('div');
+      el.innerHTML = Array.prototype.join.call(
+        Array.prototype.map.call(arguments, function(x) { return "> " + x; }),
+        '<br />');
+      document.getElementById('js-log').appendChild(el);
+    }
+
+    var dbname = 'db' + Date.now();
+    var osname = 'objectStore';
+    var db1;
+
+    function step1() { 
+      log("Step 1: Create database connection 1 with observer");
+      var req = indexedDB.open(dbname);
+      req.onupgradeneeded = function() {
+        db1 = req.result;
+        db1.createObjectStore(osname);
+      };
+      req.onsuccess = function() {
+        db1 = req.result;
+        log("Database connection 1 created.")
+        var txn = db1.transaction(osname, 'readwrite');
+        txn.objectStore(osname).startObservingChanges(function(event) {
+          log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(event));
+        });
+        txn.oncomplete = step2;
+        txn.onerror = log;
+      }; 
+    }
+
+    function step2() {
+      log("Step 2: Create database connection 2 and make change.");
+      var req = indexedDB.open(dbname);
+      req.onupgradeneeded = function() {
+        db2 = req.result;
+        db2.createObjectStore(osname);
+      };
+      req.onsuccess = function() {
+        db2 = req.result;
+        log("Database connection 2 created.")
+        var txn = db2.transaction(osname, 'readwrite');
+        var store = txn.objectStore(osname);
+        store.add('val1', 1);
+        txn.oncomplete = done;
+        txn.onerror = log;
+      }; 
+    }
+
+    function done() {
+      log("Done!");
+    }
+
+    step1();
+  </script>
+  </body>
+</html>
