@@ -7,8 +7,8 @@ Please file an issue if you have any feedback :)
 
 - [Objective](#objective)
 - [API Additions](#api-additions)
-    - [IDBObjectStore.startObservingChanges(function(changes){...})](#idbobjectstorestartobservingchangesfunctionchanges)
-    - [IDBObjectStore.stopObservingChanges(function(changes){...})](#idbobjectstorestopobservingchangesfunctionchanges)
+    - [IDBObjectStore.startObservingChanges(function(changes, objStore){...})](#idbobjectstorestartobservingchangesfunctionchanges-objstore)
+    - [IDBObjectStore.stopObservingChanges(function(changes, objStore){...})](#idbobjectstorestopobservingchangesfunctionchanges-objstore)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
     - [Observing a key range](#observing-a-key-range)
@@ -30,7 +30,7 @@ I want to solve the following use cases:
 TODO: Write testharness.js
 
 # API Additions
-### IDBObjectStore.startObservingChanges(fcn(changes, store){...})
+### IDBObjectStore.startObservingChanges(function(changes, objStore){...})
 ```
 function observerFunction(changes, objectStore) {
   console.log("Observer received changes for object store '" + objectStore.name + "': " + JSON.stringify(changes));
@@ -59,7 +59,7 @@ Example changes array:
 ```
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stopObservingChanges` is called.
 
-### IDBObjectStore.stopObservingChanges(fcn(changes, store){...})
+### IDBObjectStore.stopObservingChanges(function(changes, objStore){...})
 ```
 // ... assuming the above code was called, where db and observerFunction are defined
 var txn = db.transaction(['objectStore'], 'readwrite');
