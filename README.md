@@ -1,3 +1,24 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [indexed-db-observers](#indexed-db-observers)
+- [Objective](#objective)
+- [API Additions](#api-additions)
+    - [IDBObjectStore.startObservingChanges(function(changes){...})](#idbobjectstorestartobservingchangesfunctionchanges)
+    - [IDBObjectStore.stopObservingChanges(function(changes){...})](#idbobjectstorestopobservingchangesfunctionchanges)
+- [Examples](#examples)
+- [Open Issues](#open-issues)
+    - [Observing a key range](#observing-a-key-range)
+    - [Observing all stores](#observing-all-stores)
+    - [Representation of `changes` given to observer](#representation-of-changes-given-to-observer)
+- [FAQ](#faq)
+    - [Why create the observer in a transaction?](#why-create-the-observer-in-a-transaction)
+    - [Why not expose 'old' values?](#why-not-expose-old-values)
+- [Try it out!](#try-it-out)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # indexed-db-observers
 Prototyping and discussion around indexeddb observers.
 Please file an issue if you have any feedback :)
