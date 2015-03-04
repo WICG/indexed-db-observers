@@ -30,7 +30,7 @@ I want to solve the following use cases:
 TODO: Write testharness.js
 
 # API Additions
-### IDBObjectStore.startObservingChanges(fcn(changes, objectStore){...})
+### IDBObjectStore.startObservingChanges(fcn(changes, store){...})
 ```
 function observerFunction(changes, objectStore) {
   console.log("Observer received changes for object store '" + objectStore.name + "': " + JSON.stringify(changes));
@@ -49,7 +49,8 @@ The passed function will be called whenever a transaction is successfully comple
  * `key`: The key or IDBKeyRange for the operation
  * `value`: The value inserted into the database by `add` or `put`
 
-Example list:
+The `store` argument is the IDBObjectStore object.
+Example changes array:
 ```
 [{"type":"add","key":1,"value":"val1"},
  {"type":"add","key":2,"value":"val2"},
@@ -58,7 +59,7 @@ Example list:
 ```
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stopObservingChanges` is called.
 
-### IDBObjectStore.stopObservingChanges(fcn(changes, objectStore){...})
+### IDBObjectStore.stopObservingChanges(fcn(changes, store){...})
 ```
 // ... assuming the above code was called, where db and observerFunction are defined
 var txn = db.transaction(['objectStore'], 'readwrite');
@@ -133,7 +134,7 @@ Here is a quick start that you can paste:
 ``` 
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
-function store1ObserverFunction(changes) {
+function observerFunction(changes, objectStore) {
   console.log("Observer received changes for store '" + objectStore.name + "': " + JSON.stringify(changes));
   for (var i = 0; i < changes.length; i++) {
     var change = changes[i];
@@ -152,7 +153,7 @@ req.onupgradeneeded = function() {
 req.onsuccess = function() {
   db = req.result;
   var txn = db.transaction([objectStoreName], 'readwrite');
-  txn.objectStore(objectStoreName).startObservingChanges(store1ObserverFunction);
+  txn.objectStore(objectStoreName).startObservingChanges(observerFunction);
   txn.oncomplete = dbOpenDone;
   txn.onerror = console.log;
 };
