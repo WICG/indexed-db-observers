@@ -28,8 +28,15 @@ txn.objectStore('objectStore').startObservingChanges(observerFunction);
 ```
 The passed function will be called whenever a transaction is successfully completed on the given object store.  The `changes` argument is a JS array, with each value containing:
  * type: 'add', 'put', or 'delete'
- * key: The key or key range of the operation
+ * key: The key or IDBKeyRange for the operation
 
+Example list:
+```
+[{"type":"add","key":1},
+ {"type":"add","key":2},
+ {"type":"put","key":4},
+ {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":2,"lower":0}}]
+```
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stopObservingChanges` is called.
 
 ### IDBObjectStore.stopObservingChanges(function(changes){...})
@@ -135,6 +142,5 @@ function dbOpenDone() {
   console.log("Done!");
   // continue with your application!
 }
-  
 </script>
 ```
