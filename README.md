@@ -1,8 +1,10 @@
+# indexed-db-observers
+Prototyping and discussion around indexeddb observers.
+Please file an issue if you have any feedback :)
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+**Table of Contents**
 
-- [indexed-db-observers](#indexed-db-observers)
 - [Objective](#objective)
 - [API Additions](#api-additions)
     - [IDBObjectStore.startObservingChanges(function(changes){...})](#idbobjectstorestartobservingchangesfunctionchanges)
@@ -18,11 +20,6 @@
 - [Try it out!](#try-it-out)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
-# indexed-db-observers
-Prototyping and discussion around indexeddb observers.
-Please file an issue if you have any feedback :)
-
 # Objective
 IndexedDB needs a way to observe changes.  This project is for exploring API changes to make this possible.  Everything here is up for discussion, please file an issue if you have any feedback.
 
