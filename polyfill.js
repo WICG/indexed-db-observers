@@ -34,12 +34,19 @@
     }
     list.splice(index, 1);
   };
-
-  var createOperationObject = function(type, keyOrRange) {
-    if (!keyOrRange) {
-      return { type: type };
+  
+  var pushOperation = function(objectStore, changesMap, type, keyOrRange, value) {
+    if (!changesMap[objectStore.name]) {
+      changesMap[objectStore.name] = { store: objectStore, changes: []};
     }
-    return { type: type, key: keyOrRange };
+    var operation = { type: type };
+    if (keyOrRange) {
+      operation.key = keyOrRange;
+    }
+    if (value) {
+      operation.value = value;
+    }
+    changesMap[objectStore.name].changes.push(operation);
   };
 
   var getListeners = function(dbName, objectStoreName) {
@@ -83,12 +90,13 @@
     tx._changes = [];
     tx.db._openTransactions += 1;
     tx.addEventListener('complete', function() {
-      var changes = tx._changes;
+      var changeMap = tx._changes;
       tx._changes = [];
-      for (var objectStoreName in changes) {
+      for (var objectStoreName in changeMap) {
         var listeners = getListeners(tx.db.name, objectStoreName);
+        var changesRecord = changeMap[objectStoreName];
         for (var index in listeners) {
-          listeners[index](changes[objectStoreName]);
+          listeners[index](changesRecord.changes, changesRecord.store);
         }
       }
       tx.db._openTransactions -= 1;
@@ -118,8 +126,7 @@
     var request = $put.apply(this, arguments);
     request.addEventListener('success', function() {
       var key = request.result;
-      $this.transaction._changes[$this.name] = $this.transaction._changes[$this.name] || [];
-      $this.transaction._changes[$this.name].push(createOperationObject('put', key));
+      pushOperation($this, $this.transaction._changes, 'put', key, value);
     });
     return request;
   };
@@ -130,8 +137,7 @@
     var request = $add.apply(this, arguments);
     request.addEventListener('success', function() {
       var key = request.result;
-      $this.transaction._changes[$this.name] = $this.transaction._changes[$this.name] || [];
-      $this.transaction._changes[$this.name].push(createOperationObject('add', key));
+      pushOperation($this, $this.transaction._changes, 'add', key, value);
     });
     return request;
   };
@@ -141,8 +147,7 @@
     var $this = this;
     var request = $delete.apply(this, arguments);
     request.addEventListener('success', function() {
-      $this.transaction._changes[$this.name] = $this.transaction._changes[$this.name] || [];
-      $this.transaction._changes[$this.name].push(createOperationObject('delete', key_or_range));
+      pushOperation($this, $this.transaction._changes, 'delete', key_or_range);
     });
     return request;
   };
@@ -152,8 +157,7 @@
     var $this = this;
     var request = $clear.apply(this, arguments);
     request.addEventListener('success', function() {
-      $this.transaction._changes[$this.name] = $this.transaction._changes[$this.name] || [];
-      $this.transaction._changes[$this.name].push(createOperationObject('clear'));
+      pushOperation($this, $this.transaction._changes, 'clear');
     });
     return request;
   };
@@ -169,8 +173,7 @@
     var request = $update.apply(this, arguments);
     request.addEventListener('success', function() {
       var store = effectiveStore($this);
-      store.transaction._changes[store.name] = store.transaction._changes[store.name] || [];
-      store.transaction._changes[store.name].push(createOperationObject('put', key));
+      pushOperation(store, store.transaction._changes, 'put', key, value);
     });
     return request;
   };
@@ -182,8 +185,7 @@
     var request = $cursorDelete.apply(this, arguments);
     request.addEventListener('success', function() {
       var store = effectiveStore($this);
-      store.transaction._changes[store.name] = store.transaction._changes[store.name] || [];
-      store.transaction._changes[store.name].push(createOperationObject('delete', key));
+      pushOperation(store, store.transaction._changes, 'delete', key);
     });
     return request;
   };

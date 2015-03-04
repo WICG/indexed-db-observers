@@ -30,10 +30,10 @@ I want to solve the following use cases:
 TODO: Write testharness.js
 
 # API Additions
-### IDBObjectStore.startObservingChanges(function(changes){...})
+### IDBObjectStore.startObservingChanges(fcn(changes, objectStore){...})
 ```
-function observerFunction(changes) {
-  console.log("Observer received changes: " + JSON.stringify(changes));
+function observerFunction(changes, objectStore) {
+  console.log("Observer received changes for object store '" + objectStore.name + "': " + JSON.stringify(changes));
   for (var i = 0; i < changes.length; i++) {
     var change = changes[i];
     // do something with change.type and change.key
@@ -45,19 +45,20 @@ var txn = db.transaction(['objectStore'], 'readwrite');
 txn.objectStore('objectStore').startObservingChanges(observerFunction);
 ```
 The passed function will be called whenever a transaction is successfully completed on the given object store.  The `changes` argument is a JS array, with each value containing:
- * type: 'add', 'put', or 'delete'
- * key: The key or IDBKeyRange for the operation
+ * `type`: `add`, `put`, `delete`, or `clear`
+ * `key`: The key or IDBKeyRange for the operation
+ * `value`: The value inserted into the database by `add` or `put`
 
 Example list:
 ```
-[{"type":"add","key":1},
- {"type":"add","key":2},
- {"type":"put","key":4},
+[{"type":"add","key":1,"value":"val1"},
+ {"type":"add","key":2,"value":"val2"},
+ {"type":"put","key":4,"value":"val4"},
  {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":2,"lower":0}}]
 ```
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stopObservingChanges` is called.
 
-### IDBObjectStore.stopObservingChanges(function(changes){...})
+### IDBObjectStore.stopObservingChanges(fcn(changes, objectStore){...})
 ```
 // ... assuming the above code was called, where db and observerFunction are defined
 var txn = db.transaction(['objectStore'], 'readwrite');
@@ -133,7 +134,7 @@ Here is a quick start that you can paste:
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
 function store1ObserverFunction(changes) {
-  console.log("Observer received changes: " + JSON.stringify(changes));
+  console.log("Observer received changes for store '" + objectStore.name + "': " + JSON.stringify(changes));
   for (var i = 0; i < changes.length; i++) {
     var change = changes[i];
     // do something with change.type and change.key

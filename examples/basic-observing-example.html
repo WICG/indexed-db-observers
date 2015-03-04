@@ -8,6 +8,7 @@
     <li>add
     <li>put
     <li>delete
+    <li>clear
   </ul>
   </p>
 </div>
@@ -27,7 +28,7 @@
   }
 
   var dbname = 'db' + Date.now();
-  var osname = 'objectStore';
+  var osname = 'exampleObjectStore';
   var db1;
 
   function step1() { 
@@ -41,8 +42,8 @@
       db1 = req.result;
       log("Database connection 1 created.")
       var txn = db1.transaction(osname, 'readwrite');
-      txn.objectStore(osname).startObservingChanges(function(changes) {
-        log("Connection 1 observer received changes: <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
+      txn.objectStore(osname).startObservingChanges(function(changes, objectStore) {
+        log("Connection 1 observer received changes for store '" + objectStore.name + "': <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
       });
       txn.oncomplete = step2;
       txn.onerror = log;
@@ -67,6 +68,16 @@
     var txn = db1.transaction(osname, 'readwrite');
     var store = txn.objectStore(osname);
     store.delete(IDBKeyRange.bound(0, 2));
+    txn.oncomplete = step4;
+    txn.onerror = log;
+  }
+
+
+  function step4() {
+    log("Step 4: Clearing the object store.");
+    var txn = db1.transaction(osname, 'readwrite');
+    var store = txn.objectStore(osname);
+    store.clear();
     txn.oncomplete = done;
     txn.onerror = log;
   }
