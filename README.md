@@ -78,6 +78,11 @@ Should we allow observing just a key range instead of the whole object store?
 ### Observing all stores
 Is it valuable to globally observe changes, or observe the creation/deletion of object stores?
 
+### Including a value
+Should we include the `value` object for `add` and `put` operations?  These values can be large, so this could be costly if they are not needed.  However, if the most common behavior is to then use the value of the change (where a read would be required if we don't include the value), then perhaps we should continue to include it.
+
+If we do include it, maybe the the 'observe a key range' option would be a good feature, as users can then not listen to key ranges that they don't need and not waste performance by getting javascript callbacks with potentially large values they don't need.
+
 ### Representation of `changes` given to observer
 There are 3 options I can think of for the changes given to the observer:
  1. All/Unfiltered
