@@ -1,7 +1,17 @@
 
+
 (function(global) {
   var connections = {};
 
+  // to avoid collisions like '__proto__'
+  var protectName = function(name) {
+    return '$' + name;
+  };
+  var unprotectName = function(protected_name) {
+    return protected_name.substring(1);
+  };
+
+  // name assumed to be protected
   var addOpenDatabase = function(db, name){
     db._listeners = {};
     db._openTransactions = 0;
@@ -10,43 +20,118 @@
     connections[name].push(db);
   };
   var closeDatabase = function(db) {
+    for (var osName in db._listeners) {
+      var list = db._listeners[osName];
+      for (var i = 0; i < list.length; i++) {
+        list[i].alive = false;
+      }
+    }
     db._listeners = {};
-    var list = connections[db.name];
+    var list = connections[protectName(db.name)];
+    if (!list) {
+      console.log('Cannot find db connection for name ' + db.name);
+      return;
+    }
     var index = list.indexOf(db);
     list.splice(index, 1);
   };
 
-  var addListenerFunction = function(objectStore, fcn) {
-    var db = objectStore.transaction.db;
-    db._listeners[objectStore.name] = db._listeners[objectStore.name] || [];
-    db._listeners[objectStore.name].push(fcn); 
-  };
+  // os store names assumed to be unprotected,
+  // returns control object
+  var addObserver = function(db, objectStoresAndRanges, fcn, options) {
+    var osToRange = {};
+    for (var i = 0; i < objectStoresAndRanges.length; i++) {
+      var nameAndRange = objectStoresAndRanges[i];
+      osToRange[protectName(nameAndRange.name)] = nameAndRange.range;
+    }
+    var listener = { fcn: fcn, ranges: osToRange, alive: true, options: options };
 
-  var removeListenerFunction = function(objectStore, fcn) {
-    var db = objectStore.transaction.db;
-    var list = db._listeners[objectStore.name];
+    var osNames = [];
+    for (var i = 0; i < objectStoresAndRanges.length; i++) {
+      var nameAndRange = objectStoresAndRanges[i];
+      osNames.push(nameAndRange.name);
+      var name = protectName(nameAndRange.name);
+      db._listeners[name] = db._listeners[name] || [];
+      db._listeners[name].push(listener);
+    }
+    // let the observer load initial state.
+    var txn = db.transaction(osNames, 'readonly');
+    fcn(null, { db: db, objectStoreName: null, isExternalChange: false, transaction: txn});
+    var control = {
+      isAlive: function() {
+        return listener.alive;
+      },
+      stop: function() {
+        for (var osName in listener.ranges) {
+          var list = db._listeners[osName];
+          if (!list) {
+            console.log('could not find list for object store ' + osName);
+            continue;
+          }
+          var index = list.indexOf(listener);
+          if (index === -1) {
+            console.log('could not find listener in list for object store ' + osName);
+            return;
+          }
+          list.splice(index, 1);
+        }
+        listener.alive = false;
+      }
+    };
+    return control;
+  };
+  // protected name
+  var hasListeners = function(db, osName) {
+    return !!db._listeners[osName];
+  };
+  // protected name
+  var hasListenersForValues = function(db, osName) {
+    var list = db._listeners[osName];
     if (!list) {
-      return;
+      return false;
     }
-    var index = list.indexOf(fcn);
-    if (index === -1) {
-      return;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].options.includeValues) {
+        return true;
+      }
     }
-    list.splice(index, 1);
+    return false;
+  };
+  // protected name
+  var hasListenersNoValues = function(db, osName) {
+    var list = db._listeners[osName];
+    if (!list) {
+      return false;
+    }
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i].options.includeValues) {
+        return true;
+      }
+    }
+    return false;
   };
   
-  var pushOperation = function(objectStore, changesMap, type, keyOrRange, value) {
-    if (!changesMap[objectStore.name]) {
-      changesMap[objectStore.name] = { store: objectStore, changes: []};
+  var pushOperation = function(objectStore, changesMap, type, keyOrRange, value) { 
+    var name = protectName(objectStore.name);
+    if (!hasListeners(objectStore.transaction.db, name)) {
+      return;
+    }
+    if (!changesMap[name]) {
+      changesMap[name] = { changes: [], valueChanges: [] };
     }
     var operation = { type: type };
     if (keyOrRange) {
       operation.key = keyOrRange;
     }
-    if (value) {
-      operation.value = value;
+    if (hasListenersForValues(objectStore.transaction.db, name)) {
+      var valueOperation = { type: type };
+      if (keyOrRange) {
+        valueOperation.key = keyOrRange;
+      }
+      valueOperation.value = value;
+      changesMap[name].valueChanges.push(operation);
     }
-    changesMap[objectStore.name].changes.push(operation);
+    changesMap[name].changes.push(operation);
   };
 
   var getListeners = function(dbName, objectStoreName) {
@@ -82,6 +167,50 @@
       this._closePending = true;
     }
   };
+
+  IDBDatabase.prototype.observe = function(namesOrNamesAndRanges, listenerFunction, options) {
+    var sanitizedNamesAndRanges = [];
+    if (typeof namesOrNamesAndRanges === 'string') {
+      sanitizedNamesAndRanges = [{ name: namesOrNamesAndRanges }];
+    } else if (typeof namesOrNamesAndRanges === 'object') {
+      if (Array.isArray(namesOrNamesAndRanges)) {
+        for (var i = 0; i < namesOrNamesAndRanges.length; i++) {
+          var argEntry = namesOrNamesAndRanges[i];
+          if (!argEntry.name) {
+            console.log("No name provided for namesAndRanges array entry: ", argEntry);
+            continue;
+          }
+          var entry = {
+            name: argEntry.name,
+            range: argEntry.range
+          }
+          sanitizedNamesAndRanges.push(entry);
+        }
+      } else {
+        if (!namesOrNamesAndRanges.name) {
+          console.log("No name provided for namesAndRanges: ", namesOrNamesAndRanges);
+          return null;
+        }
+        var entry = {
+          name: namesOrNamesAndRanges.name,
+          range: namesOrNamesAndRanges.range
+        };  
+        sanitizedNamesAndRanges.push(entry);
+      }
+    } else {
+      console.log('unknown namesOrNamesAndRanges argument: ', namesOrNamesAndRanges);
+      return null;
+    }
+    if (sanitizedNamesAndRanges.length == 0) {
+      console.log('could not parse namesOrNamesAndRanges argument');
+      return null;
+    }
+    var sanatizedOptions = {
+      includeValues: options ? !!options.includeValues : false,
+      includeTransaction: options ? !!options.includeTransaction : false
+    }
+    return addObserver(this, sanitizedNamesAndRanges, listenerFunction, sanatizedOptions);
+  };
   
   var $transaction = IDBDatabase.prototype.transaction;
   IDBDatabase.prototype.transaction = function(scope, mode) {
@@ -93,10 +222,27 @@
       var changeMap = tx._changes;
       tx._changes = [];
       for (var objectStoreName in changeMap) {
+        var unprotectedName = unprotectName(objectStoreName);
         var listeners = getListeners(tx.db.name, objectStoreName);
         var changesRecord = changeMap[objectStoreName];
-        for (var index in listeners) {
-          listeners[index](changesRecord.changes, changesRecord.store);
+        for (var i = 0; i < listeners.length; i++) {
+          var listener = listeners[i];
+          var metadata = {
+            db: listener.db,
+            objectStoreName: unprotectedName,
+            isExternalChange: false
+          };
+          var changes = changesRecord.changes;
+          if (listener.options.includeValues) {
+            changes = changesRecord.valueChanges;
+          }
+          if (listener.options.includeTransaction) {
+            var osNames = Object.keys(listener.ranges).map(function(value) {
+              return unprotectName(value);
+            });
+            metadata.transaction = tx.db.transaction(osNames, 'readonly');
+          }
+          listener.fcn(changes, metadata);
         }
       }
       tx.db._openTransactions -= 1;
@@ -111,13 +257,6 @@
       }
     })
     return tx;
-  };
- 
-  IDBObjectStore.prototype.startObservingChanges = function(fcn) {
-    addListenerFunction(this, fcn);
-  };
-  IDBObjectStore.prototype.stopObservingChanges = function(fcn) {
-    removeListenerFunction(this, fcn);
   };
 
   var $put = IDBObjectStore.prototype.put;
