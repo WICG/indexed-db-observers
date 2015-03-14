@@ -1,0 +1,126 @@
+<link rel="stylesheet" type="text/css" href="examples-style.css">
+<div>
+  <h1>IndexedDB Observers Demo App</h1>
+  <p>This example allows the user to exeriment with the behavior of idb observers.</p>
+</div>
+<div id="log-wrapper">
+  <div><b>&nbsp;&nbsp;Page Log</b></div>
+  <div id="js-log"> </div>
+</div>
+<div id="os1-buttons" class="buttons">
+Object Store 1 ('os1')<br/>
+<input type="button" value="Clear" on-click="clearObjectStore('os1');"/> the objectStore.<br/>
+<input type="button" value="Add" on-click="addElements('os1');"/> elements 1, 2, 3<br/>
+<input type="button" value="Put" on-click="putElements('os1');"/> elements 2, 3, 4<br/>
+<input type="button" value="Delete" on-click="deleteElements('os1');"/> elements 1, 2<br/>
+<input type="button" value="All" on-click="mixed('os1');"/> All of the above in one transaction.
+</div>
+<div id="os2-buttons" class="buttons">
+Object Store 2 ('os2')<br/>
+<input type="button" value="Clear" on-click="clearObjectStore('os2');"/> the objectStore.<br/>
+<input type="button" value="Add" on-click="addElements('os2');"/> elements 1, 2, 3<br/>
+<input type="button" value="Put" on-click="putElements('os2');"/> elements 2, 3, 4<br/>
+<input type="button" value="Delete" on-click="deleteElements('os2');"/> elements 1, 2<br/>
+<input type="button" value="All" on-click="mixed('os2');"/> All of the above in one transaction.
+</div>
+<div style="clear: left;"></div>
+<div id="observer-buttons" class="buttons">
+Observers<br/> 
+Object stores (comma separated): <input type="text" id="objectStoresInput"/><br/>
+Key range (optional, inclusive, comma separated) <input type="text" id="keyRangeInput"/><br/>
+Include transaction <input type="checkbox" id="includeTransactionCheckbox"/><br/>
+Include values <input type="checkbox" id="includeValuesCheckbox"/><br/>
+<input type="button" value="Add" onclick="addObserver();"/><br/>
+</div>
+<div id="observers">
+</div>
+<script src="../polyfill.js"></script>
+<script>
+function log() {
+  console.log.apply(console, arguments);
+  var el = document.createElement('div');
+  el.innerHTML = Array.prototype.join.call(
+    Array.prototype.map.call(arguments, function(x, index) { return index == 0 ? '> ' + x : '&nbsp;&nbsp;' + x; }),
+    '<br />');
+  document.getElementById('js-log').appendChild(el);
+}
+var dbname = 'db' + Date.now();
+var db;
+log("Creating database connection.");
+var req = indexedDB.open(dbname);
+req.onupgradeneeded = function() {
+  db = req.result;
+  db.createObjectStore('os1');
+  db.createObjectStore('os2');
+};
+req.onsuccess = function() {
+  db = req.result;
+  log("Database connection created.");
+}; 
+var observers = [];
+var currentId = 0;
+// id, lastChanges, lastMetadata, initialized, initializedState, ostores
+function getDivForObserver(observer) {
+  var out = '<div class="observer" id="observer"' + observer.id + '"><h3>Observer \'' + observer.id + '\'</h3>'; 
+  out += '<br/>objectStores: ' + JSON.stringify(observer.ostores);
+  out += '<br/>initialized: ' + observer.initialized;
+  out += '<br/>initializedState: ' + JSON.stringify(observer.initializedState);
+  out += '<br/>lastChanges: ' + JSON.stringify(observer.lastChanges);
+  out += '<br/>lastMetadata: ' + JSON.stringify(observer.lastMetadata);
+  return out + '</div>';
+}
+
+function updateObservers() {
+  var observersDiv = document.getElementById('observers');
+  observersDiv.innerHTML = '';
+  for (var i = 0; i < observers.length; i++){
+    observersDiv.innerHTML += getDivForObserver(observers[i]);
+  }
+}
+
+function addObserver() {
+  var objectStores = document.getElementById('objectStoresInput').value.split(',');
+  if (objectStores.length === 1 && objectStores[0] === '') objectStores = [];
+  var keyRange = document.getElementById('keyRangeInput').value.split(',');
+  if (keyRange.length === 1 && keyRange[0] === '') keyRange = [];
+  var includeTransaction = document.getElementById('includeTransactionCheckbox').checked;
+  var includeValues = document.getElementById('includeValuesCheckbox').checked;
+  console.log(objectStores, keyRange, includeTransaction, includeValues);
+  var observer = {};
+  observer.ostores = objectStores;
+  observer.id = currentId++;
+  observer.initialized = false;
+  if (keyRange === [""] ) keyRange = [];
+  if (objectStores.length === 0) {
+    log('invalid input: ', objectStores, keyRange);
+    return;
+  }
+  log('Creating observer ' + observer.id);
+  var control = db.observe(objectStores, function(changes, metadata) {
+    if (changes == null) {
+      log('Initializing observer ' + observer.id);
+      observer.initialized = true;
+      observer.initializedState = {};
+      for (var i = 0; i < objectStores.length; i++) {
+        var contents = [];
+        var store = objectStores[i];
+        var cursorRequest = metadata.transaction.objectStore(store).openCursor();
+        request.onsuccess = function() {
+          var cursor = request.result;
+          if (cursor) {
+            contents.push(cursor.value);
+            cursor.continue();
+          } else {
+            log('done cursor initialization')
+            observer.initializedState[store] = contents;
+            updateObservers();
+          }
+        };
+      }
+    } else {
+
+    }
+  }, { includeValues: includeValues, includeTransaction: includeTransaction });
+};
+
+</script>

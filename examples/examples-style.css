@@ -11,3 +11,8 @@
   padding: 7px;
   padding-right: 0px;
 }
+
+.buttons {
+  float: left;
+  margin: 10px;
+}
