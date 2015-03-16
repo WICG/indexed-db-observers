@@ -44,7 +44,7 @@
       var nameAndRange = objectStoresAndRanges[i];
       osToRange[protectName(nameAndRange.name)] = nameAndRange.range;
     }
-    var listener = { fcn: fcn, ranges: osToRange, alive: true, options: options };
+    var listener = { db: db, fcn: fcn, ranges: osToRange, alive: true, options: options };
 
     var osNames = [];
     for (var i = 0; i < objectStoresAndRanges.length; i++) {
@@ -128,8 +128,10 @@
       if (keyOrRange) {
         valueOperation.key = keyOrRange;
       }
-      valueOperation.value = value;
-      changesMap[name].valueChanges.push(operation);
+      if (value) {
+        valueOperation.value = value;
+      }
+      changesMap[name].valueChanges.push(valueOperation);
     }
     changesMap[name].changes.push(operation);
   };
@@ -176,6 +178,9 @@
       if (Array.isArray(namesOrNamesAndRanges)) {
         for (var i = 0; i < namesOrNamesAndRanges.length; i++) {
           var argEntry = namesOrNamesAndRanges[i];
+          if (typeof argEntry === "string") {
+            argEntry = { name: argEntry };
+          }
           if (!argEntry.name) {
             console.log("No name provided for namesAndRanges array entry: ", argEntry);
             continue;
@@ -211,7 +216,37 @@
     }
     return addObserver(this, sanitizedNamesAndRanges, listenerFunction, sanatizedOptions);
   };
-  
+
+  var keyInRange = function(range, key, keyOpen) {
+    var lowerOpen = keyOpen || range.lowerOpen;
+    var upperOpen = keyOpen || range.upperOpen;
+    return ((lowerOpen && indexedDB.cmp(key, range.lower) > 0) ||
+            (!lowerOpen && indexedDB.cmp(key, range.lower) >= 0)) &&
+           ((upperOpen && indexedDB.cmp(key, range.upper) < 0) ||
+            (!lowerOpen && indexedDB.cmp(key, range.upper) <= 0))
+  };
+  var rangesIntersect = function(range1, range2) {
+    var lower1Open = range1.lowerOpen || range2.upperOpen;
+    var upper1Open = range1.upperOpen || range2.lowerOpen;
+    return ((lower1Open && indexedDB.cmp(range1.lower, range2.upper) < 0) ||
+            (!lower1Open && indexedDB.cmp(range1.lower, range2.upper) <= 0)) &&
+           ((upper1Open && indexedDB.cmp(range1.upper, range2.lower) > 0) ||
+            (!upper1Open && indexedDB.cmp(range1.upper, range2.lower) >= 0));
+  }
+
+  var filterForRange = function(range) {
+    return function(element) {
+      if (element.type == "clear") {
+        return true;
+      }
+      if (element.key instanceof IDBKeyRange) {
+        return rangesIntersect(element.key, range);
+      } else {
+        return keyInRange(range, element.key, false);
+      }
+    };
+  }
+
   var $transaction = IDBDatabase.prototype.transaction;
   IDBDatabase.prototype.transaction = function(scope, mode) {
     var tx = $transaction.apply(this, arguments);
@@ -235,6 +270,13 @@
           var changes = changesRecord.changes;
           if (listener.options.includeValues) {
             changes = changesRecord.valueChanges;
+          }
+          var range = listener.ranges[objectStoreName];
+          if (range) {
+            changes = changes.filter(filterForRange(range));
+          }
+          if (changes.length == 0) {
+            continue;
           }
           if (listener.options.includeTransaction) {
             var osNames = Object.keys(listener.ranges).map(function(value) {

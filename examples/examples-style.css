@@ -15,4 +15,25 @@
 .buttons {
   float: left;
   margin: 10px;
+} 
+
+#observers {
+}
+
+.observer {
+  float: left;
+  margin:  5px;
+  padding: 5px;
+  border: 1px black solid;
+}
+
+.observer .content {
+  max-width: 400px;
+  overflow: scroll;
+  overflow-x: auto;
+  max-height: 400px;
+}
+
+.observer h3 {
+  margin: 5px;
 }
