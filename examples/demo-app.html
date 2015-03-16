@@ -3,6 +3,10 @@
   <h1>IndexedDB Observers Demo App</h1>
   <p>This example allows the user to exeriment with the behavior of idb observers.</p>
 </div>
+<div>
+<h2>Object Store Controls</h2>
+These buttons do basic modification to the given object stores.
+<div style="clear: left;"></div>
 <div id="os1-buttons" class="buttons">
 Object Store 1 ('os1')<br/>
 <input type="button" value="Clear" onclick="clearObjectStore('os1');"/> the objectStore.<br/>
@@ -19,17 +23,29 @@ Object Store 2 ('os2')<br/>
 <input type="button" value="Delete" onclick="deleteElements('os2');"/> elements 1, 2<br/>
 <input type="button" value="All" onclick="mixed('os2');"/> All of the above in one transaction.
 </div>
+</div>
+<div style="clear: left;"></div>
+<div>
+<h2>Observer Controls</h2>
+Use this form to create observers.
 <div style="clear: left;"></div>
 <div id="observer-buttons" class="buttons">
-Observers<br/> 
-Object stores (comma separated): <input type="text" id="objectStoresInput"/><br/>
-Key range (opt, inclusive, only first obj store) <input type="text" id="keyRangeInput"/><br/>
+Object stores to observe (comma separated, example: "os1"):<br/>
+<input type="text" id="objectStoresInput"/><br/>
+Key range (optional, inclusive, and applies only to first object store*, example: "3,4"):<br/>
+<input type="text" id="keyRangeInput"/><br/>
 Include transaction <input type="checkbox" id="includeTransactionCheckbox"/><br/>
 Include values <input type="checkbox" id="includeValuesCheckbox"/><br/>
 <input type="button" value="Add" onclick="addObserver();"/><br/>
+<br/>
+<span style="font-size: small">* for demo simplicity</span>
+</div>
 </div>
 <div style="clear: left;"></div>
+<div>
+<h2>Observers</h2>
 <div id="observers">
+</div>
 </div>
 <div style="clear: left;"></div>
 <div id="log-wrapper">
@@ -66,11 +82,10 @@ var currentId = 0;
 function getDivForObserver(observer) {
   var out = '<div class="observer" id="observer' + observer.id + '"><h3>Observer \'' + observer.id + '\'</h3>'; 
   out += '<div class="content">'; 
-  out += 'objectStores:<pre>' + JSON.stringify(observer.ostores, null, 2);
-  out += '</pre>initialized: ' + observer.initialized;
-  out += '<br/>initializedStates:<pre>' + JSON.stringify(observer.initializedState, null, 2);
-  out += '</pre>lastChanges: <pre>' + JSON.stringify(observer.lastChanges, null, 2);
-  out += '</pre>lastMetadata: <pre>' + JSON.stringify(sanitizeMetadata(observer.lastMetadata), null, 2);
+  out += 'Observing object stores:<pre>' + JSON.stringify(observer.ostores);
+  out += '</pre>Contents of object stores on observer creation:<pre>' + JSON.stringify(observer.initializedState);
+  out += '</pre>Changes from last observe callback: <pre>' + JSON.stringify(observer.lastChanges);
+  out += '</pre>Metadata from last observe callback: <pre>' + JSON.stringify(sanitizeMetadata(observer.lastMetadata));
   return out + '</pre></div></div>';
 }
 
@@ -88,10 +103,10 @@ function sanitizeMetadata(metadata) {
     return metadata;
   }
   return {
-    hasTransaction: !!metadata.transaction,
-    db: metadata.db.name,
     objectStoreName: metadata.objectStoreName,
-    isExternalChange: metadata.isExternalChange
+    transaction: metadata.transaction ? '{{POPULATED!}}' : '{{NOT populated}}',
+    isExternalChange: metadata.isExternalChange,
+    db: '{ ... name: ' + metadata.db.name + ' ... }'
   };
 }
 
@@ -106,7 +121,6 @@ function addObserver() {
   var observer = {};
   observer.ostores = objectStores;
   observer.id = currentId++;
-  observer.initialized = false;
   observer.initializedState = {};
   keyRange = keyRange.map(function(element) {
     return parseInt(element, 10);
@@ -153,8 +167,8 @@ function addObserver() {
       observer.lastChanges = changes;
       observer.lastMetadata = metadata;
       log('Observer ' + observer.id + ' recieved changes and metadata: ',
-          JSON.stringify(changes, null, 2),
-          JSON.stringify(sanitizeMetadata(metadata)), null, 2);
+          JSON.stringify(changes),
+          JSON.stringify(sanitizeMetadata(metadata)));
       updateObservers();
     }
   }, { includeValues: includeValues, includeTransaction: includeTransaction });
