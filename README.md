@@ -1,14 +1,20 @@
 # indexed-db-observers
 Prototyping and discussion around indexeddb observers.
 Please file an issue if you have any feedback :)
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Objective](#objective)
 - [IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)](#idbdatabaseobserveobjectstores-fcnchanges-metadata-options)
-- [Examples](#examples)
+      - [Example usage:](#example-usage)
+      - [objectStores argument:](#objectstores-argument)
+      - [options argument:](#options-argument)
+      - [Observer function](#observer-function)
+      - [Return value](#return-value)
 - [Culling](#culling)
+- [Examples](#examples)
 - [Open Issues](#open-issues)
     - [Having changes from multiple object stores in one callback.](#having-changes-from-multiple-object-stores-in-one-callback)
 - [FAQ](#faq)
