@@ -32,12 +32,13 @@ I want to solve the following use cases:
 TODO: Write testharness.js
 
 # API Additions
-### IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)
+### IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)
 Example usage:
 ```
 function observerFunction(changes, metadata) {
   if (changes) { 
-    console.log("Observer received changes for object store '" + metadata.objectStoreName + "': " + JSON.stringify(changes));
+    console.log("Observer received changes for object store '" + metadata.objectStoreName + "': ",
+                JSON.stringify(changes));
     // An object store that we're observing has changed.
     for (var i = 0; i < changes.length; i++) {
       var change = changes[i];
@@ -89,10 +90,12 @@ The `metadata` includes the following:
   db: <object>, // The database connection object
   objectStoreName: <string>, // The name of the object store that was changed
   isExternalChange: <t/f>, // If the change came from a different browsing context
-  transaction: <object>  // A readonly transaction over the object stores that this observer is listening to.
-                         // This is populated when an observer is called for initialization, or always when includeTransaction is set in the options.
+  transaction: <object>  // A readonly transaction over the object stores that
+                         // this observer is listening to. This is populated when
+                         // an observer is called for initialization, or always
+                         // when includeTransaction is set in the options.
 }
-
+```
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop` is called on the observer.
 
 # Examples
