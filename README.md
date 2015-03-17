@@ -1,7 +1,6 @@
 # indexed-db-observers
 Prototyping and discussion around indexeddb observers.
 Please file an issue if you have any feedback :)
-
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
@@ -32,7 +31,7 @@ I want to solve the following use cases:
 TODO: Write testharness.js
 
 # IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)
-#### Example usage:
+#### Example Usage
 ```
 function observerFunction(changes, metadata) {
   if (changes) { 
@@ -53,7 +52,7 @@ function observerFunction(changes, metadata) {
 var observer = db.observe(['objectStore'], observerFunction);
 // ... later, observer.stop(); stops the observer.
 ```
-#### objectStores argument:
+#### `objectStores` Argument
 ```
 "objectStore1"
 or
@@ -62,7 +61,7 @@ or
 [ "objectStore1", { name: "objectStore2", range: IDBKeyRange.only(3) } ] 
 ```
 
-#### options argument:
+#### `options` Argument
 ```
 options: {
   includeValues: false,      // includes the 'value' of each change in the change array
@@ -70,8 +69,10 @@ options: {
 }
 ```
 
-#### Observer function
-The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.  The **`changes`** argument is a JS array, with each value containing:
+#### Observer Function
+The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.
+###### `changes` Argument
+The **`changes`** argument is a JS array, with each value containing:
  * `type`: `add`, `put`, `delete`, or `clear`
  * `key`: The key or IDBKeyRange for the operation
  * optional `value`: The value inserted into the database by `add` or `put`.  Included if the `includeValues` option is specified.
@@ -84,7 +85,8 @@ Example **changes** array:
 ```
 These changes are culled.  See the [Culling](#culling) section below.
 
-The **`metadata`** includes the following:
+###### `metadata` Argument
+The `metadata` includes the following:
 ```
 metadata: {
   db: <object>, // The database connection object
@@ -98,12 +100,12 @@ metadata: {
 ```
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
 
-#### Return value
-The return value of this fuction is the observer object, which has the following functions:
+#### Return Value
+The return value of the `IDBDatabase.observe` fuction is the observer object, which has the following functions:
 ```
 observer: {
-  stop: function(){}, // This stops the observer permanently.
-  isAlive: fuction(){}, // This returns if the observer is alive.
+  stop: function(){...},   // This stops the observer permanently.
+  isAlive: fuction(){...}, // This returns if the observer is alive.
 }
 ```
 
