@@ -3,7 +3,7 @@ Prototyping and discussion around indexeddb observers.
 Please file an issue if you have any feedback :)
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+**Table of Contents**
 
 - [Objective](#objective)
 - [IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)](#idbdatabaseobserveobjectstores-fcnchanges-metadata-options)
@@ -51,8 +51,8 @@ function observerFunction(changes, metadata) {
 }
 
 // ... assume 'db' is the database connection
-var observer = db.observe(['objectStore'], observerFunction);
-// ... later, observer.stop(); stops the observer.
+var control = db.observe(['objectStore'], observerFunction);
+// ... later, control.stop(); stops the observer.
 ```
 #### `objectStores` Argument
 ```
@@ -70,6 +70,8 @@ options: {
   includeTransaction: false  // includes a readonly transaction in the observer callback
 }
 ```
+
+By default, the observer is only given the keys of changed items and no transaction.  If desired, you can include values for all `put` and `add` operations by using `includeValues`.  However, these values can be large depending on your use of the IndexedDB.  If you wish to manually read only the values you need, or know more about the state of the world, you can include a readonly transaction for every observe callback using `includeTransaction`.  This creates a readonly transaction for the objectstores that you're observing every time the observer function is called.
 
 #### Observer Function
 The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.
@@ -103,9 +105,9 @@ metadata: {
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
 
 #### Return Value
-The return value of the `IDBDatabase.observe` fuction is the observer object, which has the following functions:
+The return value of the `IDBDatabase.observe` fuction is the control object, which has the following functions:
 ```
-observer: {
+control: {
   stop: function(){...},   // This stops the observer permanently.
   isAlive: fuction(){...}, // This returns if the observer is alive.
 }
@@ -173,7 +175,7 @@ function observerFunction(changes, metadata) {
 var db;
 var databaseName = 'database';
 var objectStoreName = 'store1';
-var observer;
+var control;
 var req = indexedDB.open(databaseName);
 req.onupgradeneeded = function() {
   db = req.result;
@@ -181,7 +183,7 @@ req.onupgradeneeded = function() {
 };
 req.onsuccess = function() {
   db = req.result;
-  observer = db.observe([objectStoreName], observerFunction);
+  control = db.observe([objectStoreName], observerFunction);
 };
 
 </script>
