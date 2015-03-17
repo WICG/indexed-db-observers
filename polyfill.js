@@ -1,5 +1,3 @@
-
-
 (function(global) {
   var connections = {};
 
@@ -27,6 +25,41 @@
            ((upper1Open && indexedDB.cmp(range1.upper, range2.lower) > 0) ||
             (!upper1Open && indexedDB.cmp(range1.upper, range2.lower) >= 0));
   }
+  var rangeInRange = function(outsideRange, range2) {
+    var lower1Open = outsideRange.lowerOpen && !range2.lowerOpen;
+    var upper1Open = outsideRange.upperOpen && !range2.upperOpen;
+    return ((lower1Open && indexedDB.cmp(outsideRange.lower, range2.lower) < 0) ||
+            (!lower1Open && indexedDB.cmp(outsideRange.lower, range2.lower) <= 0)) &&
+           ((upper1Open && indexedDB.cmp(outsideRange.upper, range2.upper) > 0) ||
+            (!upper1Open && indexedDB.cmp(outsideRange.upper, range2.upper) >= 0));
+  }
+  var unionRanges = function (range1, range2) {
+    var lower;
+    var lowerOpen; 
+    var upper;
+    var upperOpen;
+    if (range1.lower == range2.lower) {
+      lower = range1.lower;
+      lowerOpen = range1.lowerOpen || range2.lowerOpen;
+    } else if (range1.lower < range2.lower) {
+      lower = range1.lower;
+      lowerOpen = range1.lowerOpen;
+    } else {
+      lower = range2.lower;
+      lowerOpen = range2.lowerOpen;
+    }
+    if (range1.upper == range2.upper) {
+      upper = range1.upper;
+      upperOpen = range1.upperOpen || range2.upperOpen;
+    } else if (range1.upper > range2.upper) {
+      upper = range1.upper;
+      upperOpen = range1.upperOpen;
+    } else {
+      upper = range2.upper;
+      upperOpen = range2.upperOpen;
+    }
+    return IDBKeyRange.bound(lower, upper, lowerOpen, upperOpen);
+  } 
 
   var filterForRange = function(range) {
     return function(element) {
@@ -40,6 +73,64 @@
       }
     };
   }
+
+  // returns if we should add the new change
+  var cullChangesForNewChange = function(changeInfo, newChange) {
+    if (changeInfo.changes.length == 0) {
+      return true;
+    }
+    if (newChange.type === 'clear') {
+      changeInfo.changes = [];
+      changeInfo.valueChanges = [];
+      changeInfo.index = new Map();
+    }
+    if (newChange.type === 'add') {
+      // if this was successful, we don't have anything before us to cull.
+      return true;
+    }
+    if (newChange.type === 'put') {
+      if (changeInfo.index.has(newChange.key)) {
+        var oldChange = changeInfo.index.get(newChange.key);
+        if (oldChange.type === 'add') {
+          newChange.type = 'add';
+        }
+        var index = changeInfo.changes.indexOf(oldChange);
+        changeInfo.changes.splice(index, 1);
+        changeInfo.valueChanges.splice(index, 1);
+      }
+      return true;
+    }
+    if (newChange.type !== 'delete') {
+      console.log('Error, unrecognized type: ', newChange.type);
+      return false;
+    }
+    for (var i = changeInfo.changes.length-1; i >= 0; i--) {
+      var change = changeInfo.changes[i];
+      switch(change.type) {
+        case 'clear':
+          return false;
+        case 'delete':
+          if (rangeInRange(change.key, newChange.key)) {
+            // previous delete already does us
+            return false;
+          }
+          if (rangesIntersect(change.key, newChange.key)) {
+            // we intersect with an old change, so expand the old change with the new one.
+            change.key = unionRanges(change.key, newChange.key);
+            return false;
+          }
+          break;
+        case 'add':
+        case 'put':
+          if (keyInRange(newChange.key, change.key, false)) {
+            changeInfo.changes.splice(i, 1);
+            changeInfo.valueChanges.splice(i, 1); 
+          }
+          break;
+      }
+    }
+    return true;
+  };
 
   // name assumed to be protected
   var addOpenDatabase = function(db, name){
@@ -151,23 +242,32 @@
       return;
     }
     if (!changesMap[name]) {
-      changesMap[name] = { changes: [], valueChanges: [] };
+      changesMap[name] = { changes: [], valueChanges: [], index: new Map() };
     }
+    var changeInfo = changesMap[name];
     var operation = { type: type };
     if (keyOrRange) {
       operation.key = keyOrRange;
     }
+    var shouldAdd = cullChangesForNewChange(changeInfo, operation);
+    if (!shouldAdd) {
+      return;
+    }
+    if (keyOrRange && !(keyOrRange instanceof IDBKeyRange)) {
+      changeInfo.index.set(
+          keyOrRange, operation);
+    }
     if (hasListenersForValues(objectStore.transaction.db.name, name)) {
-      var valueOperation = { type: type };
+      var valueOperation = { type: operation.type };
       if (keyOrRange) {
-        valueOperation.key = keyOrRange;
+        valueOperation.key = operation.key;
       }
       if (value) {
         valueOperation.value = value;
       }
-      changesMap[name].valueChanges.push(valueOperation);
+      changeInfo.valueChanges.push(valueOperation);
     }
-    changesMap[name].changes.push(operation);
+    changeInfo.changes.push(operation);
   };
 
   var getListeners = function(dbName, objectStoreName) {
