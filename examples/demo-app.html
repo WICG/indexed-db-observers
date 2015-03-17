@@ -4,6 +4,17 @@
   <p>This example allows the user to experiment with the behavior of idb observers.
   The user can create observers with all possible configuations and see the changes
   and metadata they receive when doing indexedDB operations.</p>
+  <p>Try the following to exercise edge cases:
+  <ul>
+  <li>Add an observer for os1, and see how the initial state is empty</li>
+  <li>Click 'add' for os1, and see the changes. Notice how there is no transaction and there are no values.</li>
+  <li>Add an observer for os1, put "3,3" in the key range, and check the values checkbox</li>
+  <li>Notice the initial state for the second observer.</li>
+  <li>Click 'delete' for os1, and notice how the first observer received the changes but the second didn't</li>
+  <li>Click 'put' for os1, and notice the difference in the changes between the first and second observer.</li>
+  </ul>
+  You can also experiment with having an observer listen to multiple object stores.
+  </p>
 </div>
 <div>
 <h2>Object Store Controls</h2>
@@ -108,7 +119,7 @@ function sanitizeMetadata(metadata) {
   }
   return {
     objectStoreName: metadata.objectStoreName,
-    transaction: metadata.transaction ? '{{POPULATED!}}' : '{{NOT populated}}',
+    transaction: metadata.transaction ? '{ ... (populated) ... }' : 'null',
     isExternalChange: metadata.isExternalChange,
     db: '{ ... name: ' + metadata.db.name + ' ... }'
   };
