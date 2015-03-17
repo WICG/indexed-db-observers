@@ -6,14 +6,14 @@ Please file an issue if you have any feedback :)
 **Table of Contents**
 
 - [Objective](#objective)
-- [IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)](#idbdatabaseobserveobjectstores-fcnchanges-metadata-options)
-      - [Example Usage](#example-usage)
+- [IDBDatabase.observe(...)](#idbdatabaseobserve)
       - [`objectStores` Argument](#objectstores-argument)
       - [`options` Argument](#options-argument)
       - [Observer Function](#observer-function)
           - [`changes` Argument](#changes-argument)
           - [`metadata` Argument](#metadata-argument)
       - [Return Value](#return-value)
+      - [Example Usage](#example-usage)
 - [Culling](#culling)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
@@ -32,28 +32,9 @@ I want to solve the following use cases:
 
 TODO: Write testharness.js
 
-# IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)
-#### Example Usage
-```
-function observerFunction(changes, metadata) {
-  if (changes) { 
-    console.log("Observer received changes for object store '" + metadata.objectStoreName + "': ",
-                JSON.stringify(changes));
-    // An object store that we're observing has changed.
-    for (var i = 0; i < changes.length; i++) {
-      var change = changes[i];
-      // do something with change.type and change.key
-    }
-  } else {
-    console.log('Observer is initializing.');
-    // read initial database state from metadata.transaction
-  }
-}
+# IDBDatabase.observe(...)
+The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
 
-// ... assume 'db' is the database connection
-var control = db.observe(['objectStore'], observerFunction);
-// ... later, control.stop(); stops the observer.
-```
 #### `objectStores` Argument
 ```
 "objectStore1"
@@ -112,6 +93,27 @@ control: {
   isAlive: fuction(){...}, // This returns if the observer is alive.
 }
 ```
+#### Example Usage
+```
+function observerFunction(changes, metadata) {
+  if (changes) { 
+    console.log("Observer received changes for object store '" + metadata.objectStoreName + "': ",
+                JSON.stringify(changes));
+    // An object store that we're observing has changed.
+    for (var i = 0; i < changes.length; i++) {
+      var change = changes[i];
+      // do something with change.type and change.key
+    }
+  } else {
+    console.log('Observer is initializing.');
+    // read initial database state from metadata.transaction
+  }
+}
+
+// ... assume 'db' is the database connection
+var control = **db.observe(['objectStore'], observerFunction);**
+// ... later, control.stop(); stops the observer.
+``` 
 
 # Culling
 The changes given to the observer are culled. This eliminated changes that are overwriten in the same transaction or redundant. Here are some examples:
