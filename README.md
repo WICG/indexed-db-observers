@@ -12,7 +12,7 @@ Please file an issue if you have any feedback :)
 - [Open Issues](#open-issues)
     - [Having changes from multiple object stores in one callback.](#having-changes-from-multiple-object-stores-in-one-callback)
     - [Representation of `changes` given to observer](#representation-of-changes-given-to-observer)
-- [FAQing state of the world.](#faqing-state-of-the-world)
+- [FAQ](#faq)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
 - [Try it out!](#try-it-out)
 
@@ -28,7 +28,7 @@ TODO: Write testharness.js
 
 # API Additions
 ### IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)
-Example usage:
+###### Example usage:
 ```
 function observerFunction(changes, metadata) {
   if (changes) { 
@@ -49,8 +49,7 @@ function observerFunction(changes, metadata) {
 var observer = db.observe(['objectStore'], observerFunction);
 // ... later, observer.stop(); stops the observer.
 ```
-
-objectStores argument:
+###### objectStores argument:
 ```
 "objectStore1"
 or
@@ -59,7 +58,7 @@ or
 [ "objectStore1", { name: "objectStore2", range: IDBKeyRange.only(3) } ] 
 ```
 
-options argument:
+###### options argument:
 ```
 options: {
   includeValues: false,      // includes the 'value' of each change in the change array
@@ -67,11 +66,12 @@ options: {
 }
 ```
 
-The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.  The `changes` argument is a JS array, with each value containing:
+###### Observer function
+The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.  The **`changes`** argument is a JS array, with each value containing:
  * `type`: `add`, `put`, `delete`, or `clear`
  * `key`: The key or IDBKeyRange for the operation
  * optional `value`: The value inserted into the database by `add` or `put`.  Included if the `includeValues` option is specified.
-Example changes array:
+Example **changes** array:
 ```
 [{"type":"add","key":1,"value":"val1"},
  {"type":"add","key":2,"value":"val2"},
@@ -79,9 +79,9 @@ Example changes array:
  {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":2,"lower":0}}]
 ```
 
-The `metadata` includes the following:
+The **`metadata`** includes the following:
 ```
-{
+metadata: {
   db: <object>, // The database connection object
   objectStoreName: <string>, // The name of the object store that was changed
   isExternalChange: <t/f>, // If the change came from a different browsing context
@@ -91,7 +91,16 @@ The `metadata` includes the following:
                          // when includeTransaction is set in the options.
 }
 ```
-The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop` is called on the observer.
+The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
+
+###### Return value
+The return value of this fuction is the observer object, which has the following functions:
+```
+observer: {
+  stop: function(){}, // This stops the observer permanently.
+  isAlive: fuction(){}, // This returns if the observer is alive.
+}
+```
 
 # Examples
 See the html files for examples, hosted here:
@@ -139,7 +148,7 @@ OR we can have transform this into the **unordered/disjoint** change list
 
 Personally, I vote for **culling** but not transforming to the disjoint list.  If the developer wants, they can transform the ordered culled list to the unordered version, but they wouldn't be able to transform the other way.
 
-# FAQing state of the world.
+# FAQ
 
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return.  Instead we can store range delete metadata to shortcut these operations when it makes sense.  Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
