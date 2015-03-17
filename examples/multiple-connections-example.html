@@ -26,6 +26,7 @@ This example shows how observers from one database connection can observe change
   var osname = 'objectStore';
   var db1;
   var db2;
+  var observer1;
 
   function step1() { 
     log("Step 1: Create database connection 1 with observer");
@@ -37,12 +38,15 @@ This example shows how observers from one database connection can observe change
     req.onsuccess = function() {
       db1 = req.result;
       log("Database connection 1 created.")
-      var txn = db1.transaction(osname, 'readwrite');
-      txn.objectStore(osname).startObservingChanges(function(changes, objectStore) {
-        log("Connection 1 observer received changes for store '" + objectStore.name + "': <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
-      });
-      txn.oncomplete = step2;
-      txn.onerror = log;
+      observer1 = db1.observe(osname, function(changes, metadata) {
+        if (changes == null) {
+          log("Connection 1 observer initialize.");
+        } else {
+          log("Connection 1 observer received changes for objectStore: " + metadata.objectStoreName + "<br/>&nbsp;&nbsp; " + JSON.stringify(changes));
+        }
+      }, { includeValues: true });
+      log("Database connection 1 created.")
+      step2();
     }; 
   }
 

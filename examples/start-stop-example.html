@@ -26,6 +26,7 @@
   var dbname = 'db' + Date.now();
   var osname = 'objectStore';
   var db1;
+  var observer1;
 
   function observerFunction(changes, objectStore) {
     log("Connection 1 observer received changes for store '" + objectStore.name + "': <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
@@ -41,10 +42,15 @@
     req.onsuccess = function() {
       db1 = req.result;
       log("Database connection 1 created.");
-      var txn = db1.transaction(osname, 'readwrite');
-      txn.objectStore(osname).startObservingChanges(observerFunction);
-      txn.oncomplete = step2;
-      txn.onerror = log;
+      observer1 = db1.observe(osname, function(changes, metadata) {
+        if (changes == null) {
+          log("Connection 1 observer initialize.");
+        } else {
+          log("Connection 1 observer received changes for objectStore: " + metadata.objectStoreName + "<br/>&nbsp;&nbsp; " + JSON.stringify(changes));
+        }
+      });
+      log("Database connection 1 created.")
+      step2();
     }; 
   }
 
@@ -60,9 +66,8 @@
   function step3() {
     log("Step 3: Removing observer.");
     var txn = db1.transaction(osname, 'readwrite');
-    txn.objectStore(osname).stopObservingChanges(observerFunction);
-    txn.oncomplete = step4;
-    txn.onerror = log;
+    observer1.stop();
+    step4();
   }
 
   function step4() {

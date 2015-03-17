@@ -1,14 +1,18 @@
 <link rel="stylesheet" type="text/css" href="examples-style.css">
 <div>
   <h1>IndexedDB Observers Demo App</h1>
-  <p>This example allows the user to exeriment with the behavior of idb observers.</p>
+  <p>This example allows the user to experiment with the behavior of idb observers.
+  The user can create observers with all possible configuations and see the changes
+  and metadata they receive when doing indexedDB operations.</p>
 </div>
 <div>
 <h2>Object Store Controls</h2>
-These buttons do basic modification to the given object stores.
+These buttons do basic modification to the given object stores.  Make changes before
+creating an observer to see the observer record the initial state correctly, or make
+changes after creating an observer to view what the observer sees.
 <div style="clear: left;"></div>
 <div id="os1-buttons" class="buttons">
-Object Store 1 ('os1')<br/>
+Object Store 1 (<b>'os1'</b>)<br/>
 <input type="button" value="Clear" onclick="clearObjectStore('os1');"/> the objectStore.<br/>
 <input type="button" value="Add" onclick="addElements('os1');"/> elements 1, 2, 3<br/>
 <input type="button" value="Put" onclick="putElements('os1');"/> elements 2, 3, 4<br/>
@@ -16,7 +20,7 @@ Object Store 1 ('os1')<br/>
 <input type="button" value="All" onclick="mixed('os1');"/> All of the above in one transaction.
 </div>
 <div id="os2-buttons" class="buttons">
-Object Store 2 ('os2')<br/>
+Object Store 2 (<b>'os2'</b>)<br/>
 <input type="button" value="Clear" onclick="clearObjectStore('os2');"/> the objectStore.<br/>
 <input type="button" value="Add" onclick="addElements('os2');"/> elements 1, 2, 3<br/>
 <input type="button" value="Put" onclick="putElements('os2');"/> elements 2, 3, 4<br/>
@@ -27,7 +31,7 @@ Object Store 2 ('os2')<br/>
 <div style="clear: left;"></div>
 <div>
 <h2>Observer Controls</h2>
-Use this form to create observers.
+Use this form to create observers:
 <div style="clear: left;"></div>
 <div id="observer-buttons" class="buttons">
 Object stores to observe (comma separated, example: "os1"):<br/>

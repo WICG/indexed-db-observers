@@ -11,6 +11,36 @@
     return protected_name.substring(1);
   };
 
+  var keyInRange = function(range, key, keyOpen) {
+    var lowerOpen = keyOpen || range.lowerOpen;
+    var upperOpen = keyOpen || range.upperOpen;
+    return ((lowerOpen && indexedDB.cmp(key, range.lower) > 0) ||
+            (!lowerOpen && indexedDB.cmp(key, range.lower) >= 0)) &&
+           ((upperOpen && indexedDB.cmp(key, range.upper) < 0) ||
+            (!lowerOpen && indexedDB.cmp(key, range.upper) <= 0))
+  };
+  var rangesIntersect = function(range1, range2) {
+    var lower1Open = range1.lowerOpen || range2.upperOpen;
+    var upper1Open = range1.upperOpen || range2.lowerOpen;
+    return ((lower1Open && indexedDB.cmp(range1.lower, range2.upper) < 0) ||
+            (!lower1Open && indexedDB.cmp(range1.lower, range2.upper) <= 0)) &&
+           ((upper1Open && indexedDB.cmp(range1.upper, range2.lower) > 0) ||
+            (!upper1Open && indexedDB.cmp(range1.upper, range2.lower) >= 0));
+  }
+
+  var filterForRange = function(range) {
+    return function(element) {
+      if (element.type == "clear") {
+        return true;
+      }
+      if (element.key instanceof IDBKeyRange) {
+        return rangesIntersect(element.key, range);
+      } else {
+        return keyInRange(range, element.key, false);
+      }
+    };
+  }
+
   // name assumed to be protected
   var addOpenDatabase = function(db, name){
     db._listeners = {};
@@ -80,32 +110,36 @@
     };
     return control;
   };
+
   // protected name
-  var hasListeners = function(db, osName) {
-    return !!db._listeners[osName];
-  };
-  // protected name
-  var hasListenersForValues = function(db, osName) {
-    var list = db._listeners[osName];
-    if (!list) {
+  var hasListeners = function(dbname, osName) { 
+    var dbs = connections[dbname];
+    if (!dbs) {
       return false;
     }
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].options.includeValues) {
+    for (var i = 0; i < dbs.length; i++) {
+      var listeners = dbs[i]._listeners;
+      if (listeners && listeners[osName] && listeners[osName].length > 0) {
         return true;
       }
     }
     return false;
   };
   // protected name
-  var hasListenersNoValues = function(db, osName) {
-    var list = db._listeners[osName];
-    if (!list) {
+  var hasListenersForValues = function(dbname, osName) {
+    var dbs = connections[dbname];
+    if (!dbs) {
       return false;
     }
-    for (var i = 0; i < list.length; i++) {
-      if (!list[i].options.includeValues) {
-        return true;
+    for (var i = 0; i < dbs.length; i++) {
+      var listeners = dbs[i]._listeners;
+      if (listeners && listeners[osName]) {
+        var list = listeners[osName];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].options.includeValues) {
+            return true;
+          }
+        }
       }
     }
     return false;
@@ -113,7 +147,7 @@
   
   var pushOperation = function(objectStore, changesMap, type, keyOrRange, value) { 
     var name = protectName(objectStore.name);
-    if (!hasListeners(objectStore.transaction.db, name)) {
+    if (!hasListeners(objectStore.transaction.db.name, name)) {
       return;
     }
     if (!changesMap[name]) {
@@ -123,7 +157,7 @@
     if (keyOrRange) {
       operation.key = keyOrRange;
     }
-    if (hasListenersForValues(objectStore.transaction.db, name)) {
+    if (hasListenersForValues(objectStore.transaction.db.name, name)) {
       var valueOperation = { type: type };
       if (keyOrRange) {
         valueOperation.key = keyOrRange;
@@ -182,7 +216,7 @@
             argEntry = { name: argEntry };
           }
           if (!argEntry.name) {
-            console.log("No name provided for namesAndRanges array entry: ", argEntry);
+            console.log('No name provided for namesAndRanges array entry: ', argEntry);
             continue;
           }
           var entry = {
@@ -193,7 +227,7 @@
         }
       } else {
         if (!namesOrNamesAndRanges.name) {
-          console.log("No name provided for namesAndRanges: ", namesOrNamesAndRanges);
+          console.log('No name provided for namesAndRanges: ', namesOrNamesAndRanges);
           return null;
         }
         var entry = {
@@ -216,36 +250,6 @@
     }
     return addObserver(this, sanitizedNamesAndRanges, listenerFunction, sanatizedOptions);
   };
-
-  var keyInRange = function(range, key, keyOpen) {
-    var lowerOpen = keyOpen || range.lowerOpen;
-    var upperOpen = keyOpen || range.upperOpen;
-    return ((lowerOpen && indexedDB.cmp(key, range.lower) > 0) ||
-            (!lowerOpen && indexedDB.cmp(key, range.lower) >= 0)) &&
-           ((upperOpen && indexedDB.cmp(key, range.upper) < 0) ||
-            (!lowerOpen && indexedDB.cmp(key, range.upper) <= 0))
-  };
-  var rangesIntersect = function(range1, range2) {
-    var lower1Open = range1.lowerOpen || range2.upperOpen;
-    var upper1Open = range1.upperOpen || range2.lowerOpen;
-    return ((lower1Open && indexedDB.cmp(range1.lower, range2.upper) < 0) ||
-            (!lower1Open && indexedDB.cmp(range1.lower, range2.upper) <= 0)) &&
-           ((upper1Open && indexedDB.cmp(range1.upper, range2.lower) > 0) ||
-            (!upper1Open && indexedDB.cmp(range1.upper, range2.lower) >= 0));
-  }
-
-  var filterForRange = function(range) {
-    return function(element) {
-      if (element.type == "clear") {
-        return true;
-      }
-      if (element.key instanceof IDBKeyRange) {
-        return rangesIntersect(element.key, range);
-      } else {
-        return keyInRange(range, element.key, false);
-      }
-    };
-  }
 
   var $transaction = IDBDatabase.prototype.transaction;
   IDBDatabase.prototype.transaction = function(scope, mode) {
