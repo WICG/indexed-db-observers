@@ -8,6 +8,9 @@
   var unprotectName = function(protected_name) {
     return protected_name.substring(1);
   };
+  function myXOR(a,b) {
+    return ( a || b ) && !( a && b );
+  }
 
   var keyInRange = function(range, key, keyOpen) {
     var lowerOpen = keyOpen || range.lowerOpen;
@@ -20,6 +23,14 @@
   var rangesIntersect = function(range1, range2) {
     var lower1Open = range1.lowerOpen || range2.upperOpen;
     var upper1Open = range1.upperOpen || range2.lowerOpen;
+    return ((lower1Open && indexedDB.cmp(range1.lower, range2.upper) < 0) ||
+            (!lower1Open && indexedDB.cmp(range1.lower, range2.upper) <= 0)) &&
+           ((upper1Open && indexedDB.cmp(range1.upper, range2.lower) > 0) ||
+            (!upper1Open && indexedDB.cmp(range1.upper, range2.lower) >= 0));
+  }
+  var rangesTouch = function(range1, range2) {
+    var lower1Open = range1.lowerOpen && range2.upperOpen;
+    var upper1Open = range1.upperOpen && range2.lowerOpen;
     return ((lower1Open && indexedDB.cmp(range1.lower, range2.upper) < 0) ||
             (!lower1Open && indexedDB.cmp(range1.lower, range2.upper) <= 0)) &&
            ((upper1Open && indexedDB.cmp(range1.upper, range2.lower) > 0) ||
@@ -114,7 +125,7 @@
             // previous delete already does us
             return false;
           }
-          if (rangesIntersect(change.key, newChange.key)) {
+          if (rangesTouch(change.key, newChange.key)) {
             // we intersect with an old change, so expand the old change with the new one.
             change.key = unionRanges(change.key, newChange.key);
             return false;

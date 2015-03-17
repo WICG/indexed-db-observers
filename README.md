@@ -9,6 +9,7 @@ Please file an issue if you have any feedback :)
 - [API Additions](#api-additions)
     - [IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)](#idbdatabaseobserveobjectstores-fcnchanges-metadata-options)
 - [Examples](#examples)
+- [Culling](#culling)
 - [Open Issues](#open-issues)
     - [Having changes from multiple object stores in one callback.](#having-changes-from-multiple-object-stores-in-one-callback)
     - [Representation of `changes` given to observer](#representation-of-changes-given-to-observer)
@@ -76,8 +77,9 @@ Example **changes** array:
 [{"type":"add","key":1,"value":"val1"},
  {"type":"add","key":2,"value":"val2"},
  {"type":"put","key":4,"value":"val4"},
- {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":2,"lower":0}}]
+ {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":5,"lower":5}}]
 ```
+These changes are culled.  See the [Culling](#culling) section below.
 
 The **`metadata`** includes the following:
 ```
@@ -101,6 +103,28 @@ observer: {
   isAlive: fuction(){}, // This returns if the observer is alive.
 }
 ```
+
+# Culling
+The changes given to the observer are culled. This eliminated changes that are overwriten in the same transaction or redundant. Here are some examples:
+Original changes:
+ 1. add 'a', 1
+ 2. add 'b', 2
+ 3. put 'putA', 1
+ 4. delete 2
+
+These changes can **culled** to simply be
+ 1. add 'putA', 1
+
+In addition, deletes are combined when applicable:
+ 1. delete [0, 5]
+ 2. put '1' 1
+ 3. put '6' 6
+ 4. delete [5, 6)
+ 5. delete [6, 7)
+
+This is culled to:
+ 1. delete [0, 7)
+ 2. put '1' 1
 
 # Examples
 See the html files for examples, hosted here:
