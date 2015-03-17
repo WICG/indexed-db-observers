@@ -1,23 +1,18 @@
 # indexed-db-observers
 Prototyping and discussion around indexeddb observers.
 Please file an issue if you have any feedback :)
-<!-- START doctoc 
-generated TOC please keep comment here to allow auto update -->
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
 
 - [Objective](#objective)
 - [API Additions](#api-additions)
-    - [IDBObjectStore.startObservingChanges(function(changes, objStore){...})](#idbobjectstorestartobservingchangesfunctionchanges-objstore)
-    - [IDBObjectStore.stopObservingChanges(function(changes, objStore){...})](#idbobjectstorestopobservingchangesfunctionchanges-objstore)
+    - [IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)](#idbdatabaseobserveobjectstores-fcnchanges-metadata-options)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
-    - [Observing a key range](#observing-a-key-range)
-    - [Observing all stores](#observing-all-stores)
-    - [Including a value](#including-a-value)
+    - [Having changes from multiple object stores in one callback.](#having-changes-from-multiple-object-stores-in-one-callback)
     - [Representation of `changes` given to observer](#representation-of-changes-given-to-observer)
-- [FAQ](#faq)
-    - [Why create the observer in a transaction?](#why-create-the-observer-in-a-transaction)
+- [FAQing state of the world.](#faqing-state-of-the-world)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
 - [Try it out!](#try-it-out)
 
