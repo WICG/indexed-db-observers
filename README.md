@@ -1,7 +1,8 @@
 # indexed-db-observers
 Prototyping and discussion around indexeddb observers.
 Please file an issue if you have any feedback :)
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- START doctoc 
+generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
 
@@ -31,26 +32,49 @@ I want to solve the following use cases:
 TODO: Write testharness.js
 
 # API Additions
-### IDBObjectStore.startObservingChanges(function(changes, objStore){...})
+### IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)
+Example usage:
 ```
-function observerFunction(changes, objectStore) {
-  console.log("Observer received changes for object store '" + objectStore.name + "': " + JSON.stringify(changes));
-  for (var i = 0; i < changes.length; i++) {
-    var change = changes[i];
-    // do something with change.type and change.key
+function observerFunction(changes, metadata) {
+  if (changes) { 
+    console.log("Observer received changes for object store '" + metadata.objectStoreName + "': " + JSON.stringify(changes));
+    // An object store that we're observing has changed.
+    for (var i = 0; i < changes.length; i++) {
+      var change = changes[i];
+      // do something with change.type and change.key
+    }
+  } else {
+    console.log('Observer is initializing.');
+    // read initial database state from metadata.transaction
   }
 }
 
 // ... assume 'db' is the database connection
-var txn = db.transaction(['objectStore'], 'readwrite');
-txn.objectStore('objectStore').startObservingChanges(observerFunction);
+var observer = db.observe(['objectStore'], observerFunction);
+// ... later, observer.stop(); stops the observer.
 ```
-The passed function will be called whenever a transaction is successfully completed on the given object store.  The `changes` argument is a JS array, with each value containing:
+
+objectStores argument:
+```
+"objectStore1"
+or
+{ name: "objectStore1", range: IDBKeyRange.only(3) }
+or
+[ "objectStore1", { name: "objectStore2", range: IDBKeyRange.only(3) } ] 
+```
+
+options argument:
+```
+options: {
+  includeValues: false,      // includes the 'value' of each change in the change array
+  includeTransaction: false  // includes a readonly transaction in the observer callback
+}
+```
+
+The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.  The `changes` argument is a JS array, with each value containing:
  * `type`: `add`, `put`, `delete`, or `clear`
  * `key`: The key or IDBKeyRange for the operation
- * `value`: The value inserted into the database by `add` or `put`
-
-The `store` argument is the IDBObjectStore object.
+ * optional `value`: The value inserted into the database by `add` or `put`.  Included if the `includeValues` option is specified.
 Example changes array:
 ```
 [{"type":"add","key":1,"value":"val1"},
@@ -58,33 +82,30 @@ Example changes array:
  {"type":"put","key":4,"value":"val4"},
  {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":2,"lower":0}}]
 ```
-The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stopObservingChanges` is called.
 
-### IDBObjectStore.stopObservingChanges(function(changes, objStore){...})
+The `metadata` includes the following:
 ```
-// ... assuming the above code was called, where db and observerFunction are defined
-var txn = db.transaction(['objectStore'], 'readwrite');
-txn.objectStore('objectStore').stopObservingChanges(observerFunction);
-```
-This removes the given function as an observer of the object store.
+{
+  db: <object>, // The database connection object
+  objectStoreName: <string>, // The name of the object store that was changed
+  isExternalChange: <t/f>, // If the change came from a different browsing context
+  transaction: <object>  // A readonly transaction over the object stores that this observer is listening to.
+                         // This is populated when an observer is called for initialization, or always when includeTransaction is set in the options.
+}
+
+The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop` is called on the observer.
 
 # Examples
 See the html files for examples, hosted here:
 https://dmurph.github.io/indexed-db-observers/ 
 
 # Open Issues
-### Observing a key range
-Should we allow observing just a key range instead of the whole object store?
-
-### Observing all stores
-Is it valuable to globally observe changes, or observe the creation/deletion of object stores?
-
-### Including a value
-Should we include the `value` object for `add` and `put` operations?  These values can be large, so this could be costly if they are not needed.  However, if the most common behavior is to then use the value of the change (where a read would be required if we don't include the value), then perhaps we should continue to include it.
-
-If we do include it, maybe the the 'observe a key range' option would be a good feature, as users can then not listen to key ranges that they don't need and not waste performance by getting javascript callbacks with potentially large values they don't need.
+### Having changes from multiple object stores in one callback.
+If a transaction hits multiple object stores, and an observer is registered for more than one of the ones modified in the transaction, should we include all of those changes in that observer function?  I'm thinking probably yes.  Also, if the observer is asking for transactions this means we are creating multiple transactions for the change, instead of just one.
 
 ### Representation of `changes` given to observer
+(old, we're probably going with culling)
+
 There are 3 options I can think of for the changes given to the observer:
  1. All/Unfiltered
  2. Culled
@@ -120,9 +141,7 @@ OR we can have transform this into the **unordered/disjoint** change list
 
 Personally, I vote for **culling** but not transforming to the disjoint list.  If the developer wants, they can transform the ordered culled list to the unordered version, but they wouldn't be able to transform the other way.
 
-# FAQ
-### Why create the observer in a transaction?
-The observer needs to have a 'true' state of the world when it starts observing.  It shouldn't observe from the middle of another transaction that could fail or abort.  So we need to register the observer in a transaction to guarentee that we start observing from an unchanging state of the world.
+# FAQing state of the world.
 
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return.  Instead we can store range delete metadata to shortcut these operations when it makes sense.  Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
@@ -134,23 +153,30 @@ Import the polyfill to try it out:
 ```
 Polyfill Caveats:
  * It doesn't broadcast accross browsing contexts
- * No culling of changes
+ * No culling of changes yet
 
 Here is a quick start that you can paste:
 ``` 
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
-function observerFunction(changes, objectStore) {
-  console.log("Observer received changes for store '" + objectStore.name + "': " + JSON.stringify(changes));
-  for (var i = 0; i < changes.length; i++) {
-    var change = changes[i];
-    // do something with change.type and change.key
+function observerFunction(changes, metadata) {
+  if (changes) { 
+    console.log("Observer received changes for object store '" + metadata.objectStoreName + "': " + JSON.stringify(changes));
+    // An object store that we're observing has changed.
+    for (var i = 0; i < changes.length; i++) {
+      var change = changes[i];
+      // do something with change.type and change.key
+    }
+  } else {
+    console.log('Observer is initializing.');
+    // read initial database state from metadata.transaction
   }
 }
 
 var db;
 var databaseName = 'database';
 var objectStoreName = 'store1';
+var observer;
 var req = indexedDB.open(databaseName);
 req.onupgradeneeded = function() {
   db = req.result;
@@ -158,15 +184,8 @@ req.onupgradeneeded = function() {
 };
 req.onsuccess = function() {
   db = req.result;
-  var txn = db.transaction([objectStoreName], 'readwrite');
-  txn.objectStore(objectStoreName).startObservingChanges(observerFunction);
-  txn.oncomplete = dbOpenDone;
-  txn.onerror = console.log;
+  observer = db.observe([objectStoreName], observerFunction);
 };
 
-function dbOpenDone() {
-  console.log("Done!");
-  // continue with your application!
-}
 </script>
 ```
