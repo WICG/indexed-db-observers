@@ -6,13 +6,11 @@ Please file an issue if you have any feedback :)
 **Table of Contents**
 
 - [Objective](#objective)
-- [API Additions](#api-additions)
-    - [IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)](#idbdatabaseobserveobjectstores-fcnchanges-metadata-options)
+- [IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)](#idbdatabaseobserveobjectstores-fcnchanges-metadata-options)
 - [Examples](#examples)
 - [Culling](#culling)
 - [Open Issues](#open-issues)
     - [Having changes from multiple object stores in one callback.](#having-changes-from-multiple-object-stores-in-one-callback)
-    - [Representation of `changes` given to observer](#representation-of-changes-given-to-observer)
 - [FAQ](#faq)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
 - [Try it out!](#try-it-out)
@@ -27,9 +25,8 @@ I want to solve the following use cases:
 
 TODO: Write testharness.js
 
-# API Additions
-### IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)
-###### Example usage:
+# IDBDatabase.observe(objectStores, fcn(changes, metadata){}, options)
+#### Example usage:
 ```
 function observerFunction(changes, metadata) {
   if (changes) { 
@@ -50,7 +47,7 @@ function observerFunction(changes, metadata) {
 var observer = db.observe(['objectStore'], observerFunction);
 // ... later, observer.stop(); stops the observer.
 ```
-###### objectStores argument:
+#### objectStores argument:
 ```
 "objectStore1"
 or
@@ -59,7 +56,7 @@ or
 [ "objectStore1", { name: "objectStore2", range: IDBKeyRange.only(3) } ] 
 ```
 
-###### options argument:
+#### options argument:
 ```
 options: {
   includeValues: false,      // includes the 'value' of each change in the change array
@@ -67,7 +64,7 @@ options: {
 }
 ```
 
-###### Observer function
+#### Observer function
 The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.  The **`changes`** argument is a JS array, with each value containing:
  * `type`: `add`, `put`, `delete`, or `clear`
  * `key`: The key or IDBKeyRange for the operation
@@ -95,7 +92,7 @@ metadata: {
 ```
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
 
-###### Return value
+#### Return value
 The return value of this fuction is the observer object, which has the following functions:
 ```
 observer: {
@@ -106,7 +103,6 @@ observer: {
 
 # Culling
 The changes given to the observer are culled. This eliminated changes that are overwriten in the same transaction or redundant. Here are some examples:
-Original changes:
  1. add 'a', 1
  2. add 'b', 2
  3. put 'putA', 1
@@ -133,47 +129,7 @@ https://dmurph.github.io/indexed-db-observers/
 # Open Issues
 ### Having changes from multiple object stores in one callback.
 If a transaction hits multiple object stores, and an observer is registered for more than one of the ones modified in the transaction, should we include all of those changes in that observer function?  I'm thinking probably yes.  Also, if the observer is asking for transactions this means we are creating multiple transactions for the change, instead of just one.
-
-### Representation of `changes` given to observer
-(old, we're probably going with culling)
-
-There are 3 options I can think of for the changes given to the observer:
- 1. All/Unfiltered
- 2. Culled
- 3. Culled and Disjoint (unordered)
-
-The current polyfill just replays **all** changes in an array.  This can be overkill, especially if these changes overlap.  Take, for example, the following changes:
- 1. add 'a', 1
- 2. add 'b', 2
- 3. put 'putA', 1
- 4. delete 2
-
-These changes can **culled** to simply be
- 1. add 'putA', 1
-
-Another case involves range delete:
- 1. put 'a', 1
- 2. put 'b', 30
- 3. delete range [20,40]
- 4. add 'c', 31
-
-Here we can **cull** and represent the operations as
- 1. put 'a', 1
- 2. delete range [20,40]
- 3. add 'c', 31
-
-OR we can have transform this into the **unordered/disjoint** change list
- * put 'a' 1
- * delete range [20,31)
- * delete range (31,40]
- * add 'c', 31
-
-(where these changes can be performed in any order)
-
-Personally, I vote for **culling** but not transforming to the disjoint list.  If the developer wants, they can transform the ordered culled list to the unordered version, but they wouldn't be able to transform the other way.
-
 # FAQ
-
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return.  Instead we can store range delete metadata to shortcut these operations when it makes sense.  Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
 
