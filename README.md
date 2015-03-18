@@ -55,7 +55,7 @@ By default, the observer is only given the keys of changed items and no transact
  * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called.  This transaction provides a snapshot of the post-commit state.  This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores.  The transaction is active duing the callback, and becomes inactive at the end of the callback task or microtask.
 
 #### Observer Function
-The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.  If a transaction doesn't make a change to the object store, then the observer is not fired.
+The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change, even if they came from the same transaction (this can be changed).  If a transaction doesn't make a change to the object store, then the observer is not fired.
 
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
 
