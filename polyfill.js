@@ -8,9 +8,6 @@
   var unprotectName = function(protected_name) {
     return protected_name.substring(1);
   };
-  function myXOR(a,b) {
-    return ( a || b ) && !( a && b );
-  }
 
   var keyInRange = function(range, key, keyOpen) {
     var lowerOpen = keyOpen || range.lowerOpen;
