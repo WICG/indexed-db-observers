@@ -30,8 +30,6 @@ I want to solve the following use cases:
  * Updating the UI from database changes
  * Syncing local state from background worker (like a ServiceWorker) or another tab making changes.
 
-TODO: Write testharness.js
-
 # IDBDatabase.observe(...)
 The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
 
@@ -41,7 +39,7 @@ The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}
 or
 { name: "objectStore1", range: IDBKeyRange.only(3) }
 or
-[ "objectStore1", { name: "objectStore2", range: IDBKeyRange.only(3) } ] 
+[ "objectStore1", { name: "objectStore2", range: IDBKeyRange.bound(0, 1000) } ] 
 ```
 
 #### `options` Argument
@@ -52,14 +50,19 @@ options: {
 }
 ```
 
-By default, the observer is only given the keys of changed items and no transaction.  If desired, you can include values for all `put` and `add` operations by using `includeValues`.  However, these values can be large depending on your use of the IndexedDB.  If you wish to manually read only the values you need, or know more about the state of the world, you can include a readonly transaction for every observe callback using `includeTransaction`.  This creates a readonly transaction for the objectstores that you're observing every time the observer function is called.
+By default, the observer is only given the keys of changed items and no transaction.
+ * If `includeValues` is specified, then values for all `put` and `add` will be included.  However, these values can be large depending on your use of the IndexedDB.
+ * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called.  This transaction provides a snapshot of the post-commit state.  This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores.  The transaction is active duing the callback, and becomes inactive at the end of the callback task or microtask.
 
 #### Observer Function
-The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.
+The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change.  If a transaction doesn't make a change to the object store, then the observer is not fired.
+
+The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
+
 ###### `changes` Argument
 The **`changes`** argument is a JS array, with each value containing:
  * `type`: `add`, `put`, `delete`, or `clear`
- * `key`: The key or IDBKeyRange for the operation
+ * optional `key`: The key or IDBKeyRange for the operation (the `clear` type does not populate a key)
  * optional `value`: The value inserted into the database by `add` or `put`.  Included if the `includeValues` option is specified.
 Example **changes** array:
 ```
@@ -74,16 +77,17 @@ These changes are culled.  See the [Culling](#culling) section below.
 The `metadata` includes the following:
 ```
 metadata: {
-  db: <object>, // The database connection object
+  db: <object>, // The database connection object.  If null, then the change
+                // was external.
   objectStoreName: <string>, // The name of the object store that was changed
-  isExternalChange: <t/f>, // If the change came from a different browsing context
   transaction: <object>  // A readonly transaction over the object stores that
                          // this observer is listening to. This is populated when
                          // an observer is called for initialization, or always
                          // when includeTransaction is set in the options.
 }
 ```
-The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
+The `db` object is the same object that was used to create the observer.  If null, this means the change was external.
+Note:  Currently, there is one call to the observer per object store change, so objectStoreName is a string, not an array of strings.  This could be changed.
 
 #### Return Value
 The return value of the `IDBDatabase.observe` fuction is the control object, which has the following functions:
@@ -133,11 +137,15 @@ This is culled to:
  1. delete [0, 7)
  2. put '1' 1
 
+Note that these operations are still ordered.  They are not a disjoint set.
+
 # Examples
 See the html files for examples, hosted here:
 https://dmurph.github.io/indexed-db-observers/ 
 
 # Open Issues
+Issues section here: https://github.com/dmurph/indexed-db-observers/issues
+
 ### Having changes from multiple object stores in one callback.
 If a transaction hits multiple object stores, and an observer is registered for more than one of the ones modified in the transaction, should we include all of those changes in that observer function?  I'm thinking probably yes.  Also, if the observer is asking for transactions this means we are creating multiple transactions for the change, instead of just one.
 # FAQ
