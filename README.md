@@ -34,16 +34,16 @@ I want to solve the following use cases:
 The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
 
 #### `objectStores` Argument
-```
+```js
 "objectStore1"
-or
+// or
 { name: "objectStore1", range: IDBKeyRange.only(3) }
-or
+// or
 [ "objectStore1", { name: "objectStore2", range: IDBKeyRange.bound(0, 1000) } ] 
 ```
 
 #### `options` Argument
-```
+```js
 options: {
   includeValues: false,      // includes the 'value' of each change in the change array
   includeTransaction: false  // includes a readonly transaction in the observer callback
@@ -65,7 +65,7 @@ The **`changes`** argument is a JS array, with each value containing:
  * optional `key`: The key or IDBKeyRange for the operation (the `clear` type does not populate a key)
  * optional `value`: The value inserted into the database by `add` or `put`.  Included if the `includeValues` option is specified.
 Example **changes** array:
-```
+```js
 [{"type":"add","key":1,"value":"val1"},
  {"type":"add","key":2,"value":"val2"},
  {"type":"put","key":4,"value":"val4"},
@@ -75,7 +75,7 @@ These changes are culled.  See the [Culling](#culling) section below.
 
 ###### `metadata` Argument
 The `metadata` includes the following:
-```
+```js
 metadata: {
   db: <object>, // The database connection object.  If null, then the change
                 // was external.
@@ -91,14 +91,14 @@ Note:  Currently, there is one call to the observer per object store change, so 
 
 #### Return Value
 The return value of the `IDBDatabase.observe` fuction is the control object, which has the following functions:
-```
+```js
 control: {
   stop: function(){...},   // This stops the observer permanently.
   isAlive: fuction(){...}, // This returns if the observer is alive.
 }
 ```
 #### Example Usage
-```
+```js
 // ... assume 'db' is the database connection
 var control = db.observe(['objectStore'], function(changes, metadata) {
       if (changes) { 
@@ -154,7 +154,7 @@ IndexedDB was designed to allow range delete optimizations so that `delete [0,10
 
 # Try it out!
 Import the polyfill to try it out:
-```
+```js
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 ```
 Polyfill Caveats:
@@ -162,7 +162,7 @@ Polyfill Caveats:
  * No culling of changes yet
 
 Here is a quick start that you can paste:
-``` 
+```js
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
 function observerFunction(changes, metadata) {
