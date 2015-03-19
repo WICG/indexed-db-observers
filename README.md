@@ -105,10 +105,9 @@ var control = db.observe(['objectStore'], function(changes, metadata) {
         console.log("Observer received changes for object store '" + metadata.objectStoreName + "': ",
                     JSON.stringify(changes));
         // An object store that we're observing has changed.
-        for (var i = 0; i < changes.length; i++) {
-          var change = changes[i];
+        changes.forEach(function(change) {
           // do something with change.type and change.key
-        }
+        });
       } else {
         console.log('Observer is initializing.');
         // read initial database state from metadata.transaction
@@ -169,10 +168,9 @@ function observerFunction(changes, metadata) {
   if (changes) { 
     console.log("Observer received changes for object store '" + metadata.objectStoreName + "': " + JSON.stringify(changes));
     // An object store that we're observing has changed.
-    for (var i = 0; i < changes.length; i++) {
-      var change = changes[i];
+    changes.forEach(function(change) {
       // do something with change.type and change.key
-    }
+    });
   } else {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
