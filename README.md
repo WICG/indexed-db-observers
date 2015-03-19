@@ -154,7 +154,7 @@ IndexedDB was designed to allow range delete optimizations so that `delete [0,10
 
 # Try it out!
 Import the polyfill to try it out:
-```js
+```html
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 ```
 Polyfill Caveats:
@@ -162,7 +162,7 @@ Polyfill Caveats:
  * No culling of changes yet
 
 Here is a quick start that you can paste:
-```js
+```html
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
 function observerFunction(changes, metadata) {
