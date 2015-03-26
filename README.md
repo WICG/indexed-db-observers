@@ -13,12 +13,17 @@ Prototyping and discussion around indexeddb observers.
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # Objective
-IndexedDB doesn't have any observer support.  This could normally be implemented by the user agent as a wrapper around the database. However, IDB spans browsing contexts (tabs, workers, etc), and implementing a javascript wrapper that supports all of the needed features would be very difficult and performance optimization of the features would be impossible.  This project aims to add IndexedDB observers as part of the specification.
+IndexedDB doesn't have any observer support.  This could normally be implemented by the needed website (or third party) as a wrapper around the database. However, IDB spans browsing contexts (tabs, workers, etc), and implementing a javascript wrapper that supports all of the needed features would be very difficult and performance optimization of the features would be impossible.  This project aims to add IndexedDB observers as part of the specification.
 
 Here are some use cases of observers:
  * Updating the UI from database changes (data binding).
  * Syncing local state from background worker (like a ServiceWorker) or another tab making changes.
  * Serializing changes for network communcation
+
+# Resources
+
+ * [Explainer & FAQ](explainer.md)
+ * [Examples](https://dmurph.github.io/indexed-db-observers/)
 
 # Polyfill
 The polyfill is located here:
@@ -33,9 +38,26 @@ Caveats:
 # Usage
 The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
 
+You can drop this into your webpage right now (with small customization) and it should work:
 ```html
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
+// Boilerplate
+var db;
+var databaseName = 'database';
+var objectStoreName = 'store1';
+var control;
+var req = indexedDB.open(databaseName);
+req.onupgradeneeded = function() {
+  db = req.result;
+  // db.createObjectStore(objectStoreName); ?
+};
+req.onsuccess = function() {
+  db = req.result;
+  // ###### NEW FUNCTION CALL ######
+  control = db.observe([objectStoreName], observerFunction);
+}
+
 function observerFunction(changes, metadata) {
   if (!changes) {
     console.log('Observer is initializing.');
@@ -65,21 +87,6 @@ function observerFunction(changes, metadata) {
     });
   }
 }
-
-var db;
-var databaseName = 'database';
-var objectStoreName = 'store1';
-var control;
-var req = indexedDB.open(databaseName);
-req.onupgradeneeded = function() {
-  db = req.result;
-  db.createObjectStore(objectStoreName);
-};
-req.onsuccess = function() {
-  db = req.result;
-  control = db.observe([objectStoreName], observerFunction);
-};
-
 </script>
 ```
 Here we ask for a readonly transaction in our changes:
@@ -113,7 +120,8 @@ var control = db.observe([objectStoreName], function(changes, metadata) {
   }
 }, { includeValues: true });
 ```
-# Resources
 
- * [Explainer & FAQ](explainer.md)
- * [Examples](https://dmurph.github.io/indexed-db-observers/)
+And when we're done...
+```js
+control.stop();
+```
