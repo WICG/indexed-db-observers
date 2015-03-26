@@ -89,7 +89,7 @@ var control = db.observe([objectStoreName], function(changes, metadata) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
   } else { 
-    var objectStore = metadata.transaction.objectStore('store1);
+    var objectStore = metadata.transaction.objectStore('store1');
     // read in values, etc
   }
 }, { includeTransaction: true });
