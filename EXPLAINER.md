@@ -35,7 +35,9 @@ The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}
 ```js
 options: {
   includeValues: false,      // includes the 'value' of each change in the change array
-  includeTransaction: false  // includes a readonly transaction in the observer callback
+  includeTransaction: false, // includes a readonly transaction in the observer callback
+  excludeChanges: false,     // changes are excluded (null)
+  onlyExternal:   false      // only listen for changes from other browsing contexts
 }
 ```
 
@@ -66,6 +68,7 @@ These changes are culled.  See the [Culling](#culling) section below.
 The `metadata` includes the following:
 ```js
 metadata: {
+  initializing: <boolean>, // If this is the initialization call for the observer.
   db: <object>, // The database connection object.  If null, then the change
                 // was external.
   objectStoreName: <string>, // The name of the object store that was changed
@@ -90,7 +93,7 @@ control: {
 ```js
 // ... assume 'db' is the database connection
 var control = db.observe(['objectStore'], function(changes, metadata) {
-      if (changes) { 
+      if (!metadata.initializing) {
         console.log("Observer received changes for object store '" + metadata.objectStoreName + "': ",
                     JSON.stringify(changes));
         // An object store that we're observing has changed.

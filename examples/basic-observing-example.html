@@ -42,7 +42,7 @@
     req.onsuccess = function() {
       db1 = req.result;
       observer1 = db1.observe(osname, function(changes, metadata) {
-        if (changes == null) {
+        if (metadata.initializing) {
           log("Connection 1 observer initialize.");
         } else {
           log("Connection 1 observer received changes for objectStore: " + metadata.objectStoreName + "<br/>&nbsp;&nbsp; " + JSON.stringify(changes));

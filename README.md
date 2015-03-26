@@ -59,7 +59,7 @@ req.onsuccess = function() {
 }
 
 function observerFunction(changes, metadata) {
-  if (!changes) {
+  if (metadata.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
     
@@ -92,7 +92,7 @@ function observerFunction(changes, metadata) {
 Here we ask for a readonly transaction in our changes:
 ```js
 var control = db.observe([objectStoreName], function(changes, metadata) {
-  if (!changes) {
+  if (metadata.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
   } else { 
@@ -105,7 +105,7 @@ var control = db.observe([objectStoreName], function(changes, metadata) {
 Here we ask for the values in our changes:
 ```js
 var control = db.observe([objectStoreName], function(changes, metadata) {
-  if (!changes) {
+  if (metadata.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
   } else { 

@@ -155,7 +155,7 @@ function addObserver() {
   log('Creating observer ' + observer.id);
   observers.push(observer);
   var control = db.observe(objectStores, function(changes, metadata) {
-    if (changes == null) {
+    if (metadata.initializing) {
       log('Initializing observer ' + observer.id);
       observer.initialized = true;
       for (var i = 0; i < objectStores.length; i++) {

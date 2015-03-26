@@ -169,6 +169,10 @@
   // returns control object
   var addObserver = function(db, objectStoresAndRanges, fcn, options) {
     var osToRange = {};
+    if (options.onlyExternal) {
+      console.log('External changes (multiple browsing contexts) are not supported.' +
+                  'Observer is effectively a no-op until that is done.  Sorry!');
+    }
     for (var i = 0; i < objectStoresAndRanges.length; i++) {
       var nameAndRange = objectStoresAndRanges[i];
       osToRange[protectName(nameAndRange.name)] = nameAndRange.range;
@@ -185,7 +189,8 @@
     }
     // let the observer load initial state.
     var txn = db.transaction(osNames, 'readonly');
-    fcn(null, { db: db, objectStoreName: null, isExternalChange: false, transaction: txn});
+    fcn(null,
+      { initializing: true, db: db, objectStoreName: null, isExternalChange: false, transaction: txn});
     var control = {
       isAlive: function() {
         return listener.alive;
@@ -354,7 +359,9 @@
     }
     var sanatizedOptions = {
       includeValues: options ? !!options.includeValues : false,
-      includeTransaction: options ? !!options.includeTransaction : false
+      includeTransaction: options ? !!options.includeTransaction : false,
+      excludeChanges: options ? !!options.excludeChanges : false,
+      onlyExternal: options ? !!options.onlyExternal : false
     }
     return addObserver(this, sanitizedNamesAndRanges, listenerFunction, sanatizedOptions);
   };
@@ -375,6 +382,7 @@
         for (var i = 0; i < listeners.length; i++) {
           var listener = listeners[i];
           var metadata = {
+            initializing: false,
             db: listener.db,
             objectStoreName: unprotectedName,
             isExternalChange: false
@@ -389,6 +397,9 @@
           }
           if (changes.length == 0) {
             continue;
+          }
+          if (listener.options.excludeChanges) {
+            changes = null;
           }
           if (listener.options.includeTransaction) {
             var osNames = Object.keys(listener.ranges).map(function(value) {
