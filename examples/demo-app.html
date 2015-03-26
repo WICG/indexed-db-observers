@@ -119,6 +119,7 @@ function sanitizeMetadata(metadata) {
   }
   return {
     objectStoreName: metadata.objectStoreName,
+    initializing: metadata.initializing,
     transaction: metadata.transaction ? '{ ... (populated) ... }' : 'null',
     isExternalChange: metadata.isExternalChange,
     db: '{ ... name: ' + metadata.db.name + ' ... }'
@@ -169,8 +170,9 @@ function addObserver() {
               contents.push({ key: cursor.key, value: cursor.value });
               cursor.continue();
             } else {
-              log('Done reading initial state.')
+              log('Done reading initial state.');
               observer.initializedState[store] = contents;
+              observer.lastMetadata = metadata;
               updateObservers();
             }
           };
