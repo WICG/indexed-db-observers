@@ -1,7 +1,24 @@
-# Explainer Doc
+# Explainer
 Documentation & FAQ of observers
 **Please file an issue if you have any feedback :)**
-
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+- [IDBDatabase.observe(...)](#idbdatabaseobserve)
+      - [`objectStores` Argument](#objectstores-argument)
+      - [`options` Argument](#options-argument)
+      - [Observer Function](#observer-function)
+          - [`changes` Argument](#changes-argument)
+          - [`metadata` Argument](#metadata-argument)
+      - [Return Value](#return-value)
+      - [Example Usage](#example-usage)
+- [Culling](#culling)
+- [Examples](#examples)
+- [Open Issues](#open-issues)
+    - [Having changes from multiple object stores in one callback.](#having-changes-from-multiple-object-stores-in-one-callback)
+- [FAQ](#faq)
+    - [Why not expose 'old' values?](#why-not-expose-old-values)
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # IDBDatabase.observe(...)
 The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
 

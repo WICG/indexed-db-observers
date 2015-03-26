@@ -1,7 +1,16 @@
+
+
 # indexed-db-observers
 Prototyping and discussion around indexeddb observers.
 **Please file an issue if you have any feedback :)**
-
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+- [Objective](#objective)
+- [Polyfill](#polyfill)
+- [Usage](#usage)
+- [Resources](#resources)
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # Objective
 IndexedDB doesn't have any observer support.  This could normally be implemented by the user agent as a wrapper around the database. However, IDB spans browsing contexts (tabs, workers, etc), and implementing a javascript wrapper that supports all of the needed features would be very difficult and performance optimization of the features would be impossible.  This project aims to add IndexedDB observers as part of the specification.
 
