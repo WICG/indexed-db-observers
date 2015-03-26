@@ -15,7 +15,6 @@ Documentation & FAQ of observers
 - [Culling](#culling)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
-    - [Having changes from multiple object stores in one callback.](#having-changes-from-multiple-object-stores-in-one-callback)
 - [FAQ](#faq)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
 
