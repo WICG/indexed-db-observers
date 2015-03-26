@@ -18,6 +18,7 @@ Documentation & FAQ of observers
     - [Having changes from multiple object stores in one callback.](#having-changes-from-multiple-object-stores-in-one-callback)
 - [FAQ](#faq)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
+
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # IDBDatabase.observe(...)
 The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
