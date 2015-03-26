@@ -135,8 +135,6 @@ https://dmurph.github.io/indexed-db-observers/
 # Open Issues
 Issues section here: https://github.com/dmurph/indexed-db-observers/issues
 
-### Having changes from multiple object stores in one callback.
-If a transaction hits multiple object stores, and an observer is registered for more than one of the ones modified in the transaction, should we include all of those changes in that observer function?  I'm thinking probably yes.  Also, if the observer is asking for transactions this means we are creating multiple transactions for the change, instead of just one.
 # FAQ
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return.  Instead we can store range delete metadata to shortcut these operations when it makes sense.  Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
