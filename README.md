@@ -37,15 +37,32 @@ The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
 function observerFunction(changes, metadata) {
-  if (changes) { 
-    console.log("Observer received changes for object store '" + metadata.objectStoreName + "': " + JSON.stringify(changes));
-    // An object store that we're observing has changed.
-    changes.forEach(function(change) {
-      // do something with change.type and change.key
-    });
-  } else {
+  if (!changes) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
+    
+  } else { 
+    console.log('Observer received changes for object store ', metadata.objectStoreName);
+    // An object store that we're observing has changed.
+    changes.forEach(function(change) {
+      console.log('Got change: ', change);
+      // do something with change.type and change.key
+      var type = change.type;
+      switch (type) {
+        case 'clear':
+          console.log('object store cleared.');
+          break;
+        case 'add':
+          console.log('key "', change.key, '" added.');
+          break;
+        case 'put':
+          console.log('key "', change.key, '" putted.');
+          break;
+        case 'delete':
+          console.log('key or range "', change.key, '" deleted.');
+          break;
+      }
+    });
   }
 }
 
@@ -65,7 +82,37 @@ req.onsuccess = function() {
 
 </script>
 ```
+Here we ask for a readonly transaction in our changes:
+```js
+var control = db.observe([objectStoreName], function(changes, metadata) {
+  if (!changes) {
+    console.log('Observer is initializing.');
+    // read initial database state from metadata.transaction
+  } else { 
+    var objectStore = metadata.transaction.objectStore('store1);
+    // read in values, etc
+  }
+}, { includeTransaction: true });
+```
 
+Here we ask for the values in our changes:
+```js
+var control = db.observe([objectStoreName], function(changes, metadata) {
+  if (!changes) {
+    console.log('Observer is initializing.');
+    // read initial database state from metadata.transaction
+  } else { 
+    changes.forEach(function(change) {
+      var type = change.type;
+      switch (type) {
+        case 'add':
+          console.log('value "', change.value, '" added with key "', change.key, '"');
+          break;
+      }
+    });
+  }
+}, { includeValues: true });
+```
 # Resources
 
  * [Explainer & FAQ](explainer.md)
