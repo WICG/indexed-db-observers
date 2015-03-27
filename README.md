@@ -23,11 +23,10 @@ You can drop this into your webpage right now (with small customization) and it 
 ```html
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
-// Boilerplate
+// ##### START BOILERPLATE ######
 var db;
 var databaseName = 'database';
 var objectStoreName = 'store1';
-var control;
 var req = indexedDB.open(databaseName);
 req.onupgradeneeded = function() {
   db = req.result;
@@ -35,7 +34,11 @@ req.onupgradeneeded = function() {
 };
 req.onsuccess = function() {
   db = req.result;
-  // ###### NEW FUNCTION CALL ######
+}
+// ##### END BOILERPLATE ######
+
+var control;
+function main() {
   control = db.observe([objectStoreName], observerFunction);
 }
 
