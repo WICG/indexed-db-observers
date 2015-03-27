@@ -4,6 +4,7 @@ Documentation & FAQ of observers
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
+- [Why?](#why)
 - [IDBDatabase.observe(...)](#idbdatabaseobserve)
       - [`objectStores` Argument](#objectstores-argument)
       - [`options` Argument](#options-argument)
@@ -19,6 +20,15 @@ Documentation & FAQ of observers
     - [Why not expose 'old' values?](#why-not-expose-old-values)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+# Why?
+IndexedDB doesn't have any observer support. This could normally be implemented by the needed website (or third party) as a wrapper around the database. However, IDB spans browsing contexts (tabs, workers, etc), and implementing a javascript wrapper that supports all of the needed features would be very difficult and performance optimization of the features would be impossible. This project aims to add IndexedDB observers as part of the specification.
+
+Use cases for observers include:
+ * Updating the UI from database changes (data binding).
+ * Syncing local state from background worker (like a ServiceWorker) or another tab making changes.
+ * Serializing changes for network communcation
+ * Simplified application logic
+
 # IDBDatabase.observe(...)
 The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
 
