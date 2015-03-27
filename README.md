@@ -30,10 +30,11 @@ var objectStoreName = 'store1';
 var req = indexedDB.open(databaseName);
 req.onupgradeneeded = function() {
   db = req.result;
-  // db.createObjectStore(objectStoreName); ?
+  db.createObjectStore(objectStoreName);
 };
 req.onsuccess = function() {
   db = req.result;
+  main();
 }
 // ##### END BOILERPLATE ######
 
