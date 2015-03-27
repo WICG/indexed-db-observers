@@ -22,7 +22,7 @@ Here are some use cases of observers:
 
 # Resources
 
- * [Explainer & FAQ](explainer.md)
+ * [Explainer & FAQ](EXPLAINER.md)
  * [Examples](https://dmurph.github.io/indexed-db-observers/)
 
 # Polyfill
