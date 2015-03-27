@@ -2,16 +2,6 @@
 
 # indexed-db-observers
 Prototyping and discussion around indexeddb observers.
-**Please file an issue if you have any feedback :)**
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**
-- [Resources](#resources)
-- [Polyfill](#polyfill)
-- [Usage](#usage)
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-# Resources
 
  * [Explainer & FAQ](EXPLAINER.md)
  * [Examples](https://dmurph.github.io/indexed-db-observers/)
