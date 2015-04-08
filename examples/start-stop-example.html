@@ -23,14 +23,21 @@
     document.getElementById('js-log').appendChild(el);
   }
 
+  function prettifyChanges(changes) {
+    changes.db = changes.db ? '&lt;db object for ' + changes.db.name + '&gt;' : undefined;
+    changes.transaction = changes.transaction ? '&lt;transaction object&gt;' : undefined;
+    var tempRecordMap = changes.records;
+    changes.records = {};
+    tempRecordMap.forEach(function(osRecords, osName) {
+      changes.records[osName] = osRecords;
+    });
+    return JSON.stringify(changes);
+  }
+
   var dbname = 'db' + Date.now();
   var osname = 'objectStore';
   var db1;
   var observer1;
-
-  function observerFunction(changes, objectStore) {
-    log("Connection 1 observer received changes for store '" + objectStore.name + "': <br/>&nbsp;&nbsp;" + JSON.stringify(changes));
-  }
 
   function step1() { 
     log("Step 1: Create database connection 1 with observer");
@@ -42,11 +49,10 @@
     req.onsuccess = function() {
       db1 = req.result;
       log("Database connection 1 created.");
-      observer1 = db1.observe(osname, function(changes, metadata) {
-        if (changes == null) {
-          log("Connection 1 observer initialize.");
-        } else {
-          log("Connection 1 observer received changes for objectStore: " + metadata.objectStoreName + "<br/>&nbsp;&nbsp; " + JSON.stringify(changes));
+      observer1 = db1.observe(osname, function(changes) {
+        log("Connection 1 observer received changes: <br/>&nbsp;&nbsp; " + prettifyChanges(changes));
+        if (changes.initializing) {
+          log('(initializing)');
         }
       });
       log("Database connection 1 created.")

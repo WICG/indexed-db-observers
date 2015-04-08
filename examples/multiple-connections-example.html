@@ -22,6 +22,17 @@ This example shows how observers from one database connection can observe change
     document.getElementById('js-log').appendChild(el);
   }
 
+  function prettifyChanges(changes) {
+    changes.db = changes.db ? '&lt;db object for ' + changes.db.name + '&gt;' : undefined;
+    changes.transaction = changes.transaction ? '&lt;transaction object&gt;' : undefined;
+    var tempRecordMap = changes.records;
+    changes.records = {};
+    tempRecordMap.forEach(function(osRecords, osName) {
+      changes.records[osName] = osRecords;
+    });
+    return JSON.stringify(changes);
+  }
+
   var dbname = 'db' + Date.now();
   var osname = 'objectStore';
   var db1;
@@ -38,11 +49,10 @@ This example shows how observers from one database connection can observe change
     req.onsuccess = function() {
       db1 = req.result;
       log("Database connection 1 created.")
-      observer1 = db1.observe(osname, function(changes, metadata) {
-        if (metadata.initializing) {
-          log("Connection 1 observer initialize.");
-        } else {
-          log("Connection 1 observer received changes for objectStore: " + metadata.objectStoreName + "<br/>&nbsp;&nbsp; " + JSON.stringify(changes));
+      observer1 = db1.observe(osname, function(changes) {
+        log("Connection 1 observer received changes: <br/>&nbsp;&nbsp; " + prettifyChanges(changes));
+        if (changes.initializing) {
+          log('(initializing)');
         }
       }, { includeValues: true });
       log("Database connection 1 created.")
@@ -76,7 +86,7 @@ This example shows how observers from one database connection can observe change
   }
 
   function step4() {
-    log("Step 4: Make change with database connection 2.  Observer should not see any changes.");
+    log("Step 4: Make change with database connection 2.  Observer <u>should not</u> see any changes.");
     var txn = db2.transaction(osname, 'readwrite');
     var store = txn.objectStore(osname);
     store.add('val2', 2);

@@ -91,6 +91,14 @@ req.onsuccess = function() {
   log("Database connection created to '" + dbname + "'.");
 };
 
+function prettifyRecords(records) {
+  var retRecords = {};
+  records.forEach(function(osRecords, osName) {
+    retRecords[osName] = osRecords;
+  });
+  return retRecords;
+}
+
 var observers = [];
 var currentId = 0;
 // id, lastChanges, lastMetadata, initialized, initializedState, ostores
@@ -99,8 +107,7 @@ function getDivForObserver(observer) {
   out += '<div class="content">'; 
   out += 'Observing object stores:<pre>' + JSON.stringify(observer.ostores);
   out += '</pre>Contents of object stores on observer creation:<pre>' + JSON.stringify(observer.initializedState);
-  out += '</pre>Changes from last observe callback: <pre>' + JSON.stringify(observer.lastChanges);
-  out += '</pre>Metadata from last observe callback: <pre>' + JSON.stringify(sanitizeMetadata(observer.lastMetadata));
+  out += '</pre>Changes from last observe callback: <pre>' + JSON.stringify(sanitizeChanges(observer.lastChanges), undefined, 2);
   return out + '</pre></div></div>';
 }
 
@@ -112,17 +119,17 @@ function updateObservers() {
   }
 }
 
-// Makes it more readable
-function sanitizeMetadata(metadata) {
-  if (!metadata) {
-    return metadata;
+// Makes it more readable, without the records
+function sanitizeChanges(changes) {
+  if (!changes) {
+    return changes;
   }
   return {
-    objectStoreName: metadata.objectStoreName,
-    initializing: metadata.initializing,
-    transaction: metadata.transaction ? '{ ... (populated) ... }' : 'null',
-    isExternalChange: metadata.isExternalChange,
-    db: '{ ... name: ' + metadata.db.name + ' ... }'
+    initializing: changes.initializing,
+    transaction: changes.transaction ? '{ ... (populated) ... }' : 'null',
+    isExternalChange: changes.isExternalChange,
+    db: '{ ... name: ' + changes.db.name + ' ... }',
+    records: prettifyRecords(changes.records)
   };
 }
 
@@ -155,15 +162,18 @@ function addObserver() {
   }
   log('Creating observer ' + observer.id);
   observers.push(observer);
-  var control = db.observe(objectStores, function(changes, metadata) {
-    if (metadata.initializing) {
+  var control = db.observe(objectStores, function(changes) {
+    var sanitized = sanitizeChanges(changes);
+    log('Observer ' + observer.id + ' recieved changes: ',
+        JSON.stringify(sanitizeChanges(changes)));
+    if (changes.initializing) {
       log('Initializing observer ' + observer.id);
       observer.initialized = true;
       for (var i = 0; i < objectStores.length; i++) {
         var accumulateContents = function(store) {
           store = typeof store === 'string' ? store : store.name;
           var contents = [];
-          var request = metadata.transaction.objectStore(store).openCursor();
+          var request = changes.transaction.objectStore(store).openCursor();
           request.onsuccess = function(event) {
             var cursor = event.target.result;
             if (cursor) {
@@ -172,7 +182,7 @@ function addObserver() {
             } else {
               log('Done reading initial state.');
               observer.initializedState[store] = contents;
-              observer.lastMetadata = metadata;
+              observer.lastChanges = changes;
               updateObservers();
             }
           };
@@ -182,10 +192,6 @@ function addObserver() {
       observer.initialized = false;
     } else {
       observer.lastChanges = changes;
-      observer.lastMetadata = metadata;
-      log('Observer ' + observer.id + ' recieved changes and metadata: ',
-          JSON.stringify(changes),
-          JSON.stringify(sanitizeMetadata(metadata)));
       updateObservers();
     }
   }, { includeValues: includeValues, includeTransaction: includeTransaction });

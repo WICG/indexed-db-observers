@@ -186,8 +186,7 @@
     }
     // let the observer load initial state.
     var txn = db.transaction(osNames, 'readonly');
-    fcn(null,
-      { initializing: true, db: db, objectStoreName: null, isExternalChange: false, transaction: txn});
+    fcn({ initializing: true, db: db, transaction: txn, isExternalChange: false, records: new Map()});
     var control = {
       isAlive: function() {
         return listener.alive;
@@ -251,10 +250,10 @@
     if (!hasListeners(objectStore.transaction.db.name, name)) {
       return;
     }
-    if (!changesMap[name]) {
-      changesMap[name] = { changes: [], valueChanges: [], index: new Map() };
+    if (!changesMap.has(name)) {
+      changesMap.set(name, { changes: [], valueChanges: [], index: new Map() });
     }
-    var changeInfo = changesMap[name];
+    var changeInfo = changesMap.get(name);
     var operation = { type: type };
     if (keyOrRange) {
       operation.key = keyOrRange;
@@ -290,6 +289,19 @@
         return;
       }
       listeners = listeners.concat(db._listeners.get(objectStoreName));
+    });
+    return listeners;
+  };
+
+  var getListenersForDb = function(dbName) {
+    if (!connections.has(dbName)) {
+      return [];
+    }
+    var listeners = [];
+    connections.get(dbName).forEach(function(db) {
+      db._listeners.forEach(function(list) {
+        listeners = listeners.concat(list);
+      });
     });
     return listeners;
   };
@@ -367,42 +379,42 @@
   IDBDatabase.prototype.transaction = function(scope, mode) {
     var tx = $transaction.apply(this, arguments);
     if (mode !== 'readwrite') return tx;
-    tx._changes = [];
+    tx._changes = new Map();
     tx.db._openTransactions += 1;
     tx.addEventListener('complete', function() {
       var changeMap = tx._changes;
       tx._changes = [];
-      for (var objectStoreName in changeMap) {
-        var listeners = getListeners(tx.db.name, objectStoreName);
-        var changesRecord = changeMap[objectStoreName];
-        for (var i = 0; i < listeners.length; i++) {
-          var listener = listeners[i];
-          var metadata = {
-            initializing: false,
-            db: listener.db,
-            objectStoreName: objectStoreName,
-            isExternalChange: false
-          };
-          var changes = changesRecord.changes;
-          if (listener.options.includeValues) {
-            changes = changesRecord.valueChanges;
-          }
-          var range = listener.ranges[objectStoreName];
-          if (range) {
-            changes = changes.filter(filterForRange(range));
-          }
-          if (changes.length == 0) {
-            continue;
-          }
-          if (listener.options.excludeChanges) {
-            changes = null;
-          }
-          if (listener.options.includeTransaction) {
-            var osNames = Object.keys(listener.ranges);
-            metadata.transaction = tx.db.transaction(osNames, 'readonly');
-          }
-          listener.fcn(changes, metadata);
+      var listeners = getListenersForDb(tx.db.name);
+      for (var listener of listeners) {
+        var changes = {
+          initializing: false,
+          db: listener.db,
+          transaction: undefined,
+          isExternalChange: false,
+          records: new Map()
+        };
+        listener.ranges.forEach(function(range, osName) {
+            var changesRecord = changeMap.get(osName);
+            var osRecords = changesRecord.changes;
+            if (listener.options.includeValues) {
+              osRecords = changesRecord.valueChanges;
+            }
+            if (range) {
+              osRecords = osRecords.filter(filterForRange(range));
+            }
+            if (osRecords.length == 0) {
+              return;
+            }
+            if (listener.options.excludeChanges) {
+              osRecords = null;
+            }
+            changes.records.set(osName, osRecords);
+          });
+        if (listener.options.includeTransaction) {
+          var osNames = listener.ranges.keys();
+          changes.transaction = tx.db.transaction(osNames, 'readonly');
         }
+        listener.fcn(changes);
       }
       tx.db._openTransactions -= 1;
       if (tx.db._closePending) {
