@@ -1,13 +1,7 @@
 (function(global) {
-  var connections = {};
+  var connections = new Map();
 
   // to avoid collisions like '__proto__'
-  var protectName = function(name) {
-    return '$' + name;
-  };
-  var unprotectName = function(protected_name) {
-    return protected_name.substring(1);
-  };
 
   var keyInRange = function(range, key, keyOpen) {
     var lowerOpen = keyOpen || range.lowerOpen;
@@ -140,23 +134,25 @@
     return true;
   };
 
-  // name assumed to be protected
   var addOpenDatabase = function(db, name){
-    db._listeners = {};
+    db._listeners = new Map();
     db._openTransactions = 0;
     db._closePending = false;
-    connections[name] = connections[name] || [];
-    connections[name].push(db);
+    if (!connections.has(name)) {
+      connections.set(name, []);
+    }
+    connections.get(name).push(db);
   };
+
   var closeDatabase = function(db) {
-    for (var osName in db._listeners) {
-      var list = db._listeners[osName];
+    db._listeners.forEach(function(list, osName) {
       for (var i = 0; i < list.length; i++) {
         list[i].alive = false;
       }
-    }
-    db._listeners = {};
-    var list = connections[protectName(db.name)];
+    }, this);
+    
+    db._listeners.clear();
+    var list = connections.get(db.name);
     if (!list) {
       console.log('Cannot find db connection for name ' + db.name);
       return;
@@ -165,17 +161,16 @@
     list.splice(index, 1);
   };
 
-  // os store names assumed to be unprotected,
   // returns control object
   var addObserver = function(db, objectStoresAndRanges, fcn, options) {
-    var osToRange = {};
+    var osToRange = new Map();
     if (options.onlyExternal) {
-      console.log('External changes (multiple browsing contexts) are not supported.' +
-                  'Observer is effectively a no-op until that is done.  Sorry!');
+      console.error('External changes (multiple browsing contexts) are not supported.' +
+                    'Observer is effectively a no-op until that is done.  Sorry!');
     }
     for (var i = 0; i < objectStoresAndRanges.length; i++) {
       var nameAndRange = objectStoresAndRanges[i];
-      osToRange[protectName(nameAndRange.name)] = nameAndRange.range;
+      osToRange.set(nameAndRange.name, nameAndRange.range);
     }
     var listener = { db: db, fcn: fcn, ranges: osToRange, alive: true, options: options };
 
@@ -183,9 +178,11 @@
     for (var i = 0; i < objectStoresAndRanges.length; i++) {
       var nameAndRange = objectStoresAndRanges[i];
       osNames.push(nameAndRange.name);
-      var name = protectName(nameAndRange.name);
-      db._listeners[name] = db._listeners[name] || [];
-      db._listeners[name].push(listener);
+      var name = nameAndRange.name;
+      if (!db._listeners.has(name)) {
+        db._listeners.set(name, []);
+      }
+      db._listeners.get(name).push(listener);
     }
     // let the observer load initial state.
     var txn = db.transaction(osNames, 'readonly');
@@ -196,34 +193,34 @@
         return listener.alive;
       },
       stop: function() {
-        for (var osName in listener.ranges) {
-          var list = db._listeners[osName];
+        listener.ranges.forEach(function(range, osName) {
+          var list = db._listeners.get(osName);
           if (!list) {
-            console.log('could not find list for object store ' + osName);
-            continue;
+            console.error('could not find list for object store ' + osName);
+            return;
           }
           var index = list.indexOf(listener);
           if (index === -1) {
-            console.log('could not find listener in list for object store ' + osName);
+            console.error('could not find listener in list for object store ' + osName);
             return;
           }
           list.splice(index, 1);
-        }
+          db._listeners.set(osName, list);
+        }, this);
         listener.alive = false;
       }
     };
     return control;
   };
 
-  // protected name
-  var hasListeners = function(dbname, osName) { 
-    var dbs = connections[dbname];
+  var hasListeners = function(dbname, osName) {
+    var dbs = connections.get(dbname);
     if (!dbs) {
       return false;
     }
     for (var i = 0; i < dbs.length; i++) {
       var listeners = dbs[i]._listeners;
-      if (listeners && listeners[osName] && listeners[osName].length > 0) {
+      if (listeners && listeners.has(osName) && listeners.get(osName).length > 0) {
         return true;
       }
     }
@@ -231,14 +228,14 @@
   };
   // protected name
   var hasListenersForValues = function(dbname, osName) {
-    var dbs = connections[dbname];
+    var dbs = connections.get(dbname);
     if (!dbs) {
       return false;
     }
     for (var i = 0; i < dbs.length; i++) {
       var listeners = dbs[i]._listeners;
-      if (listeners && listeners[osName]) {
-        var list = listeners[osName];
+      if (listeners && listeners.has(osName)) {
+        var list = listeners.get(osName);
         for (var i = 0; i < list.length; i++) {
           if (list[i].options.includeValues) {
             return true;
@@ -250,7 +247,7 @@
   };
   
   var pushOperation = function(objectStore, changesMap, type, keyOrRange, value) { 
-    var name = protectName(objectStore.name);
+    var name = objectStore.name;
     if (!hasListeners(objectStore.transaction.db.name, name)) {
       return;
     }
@@ -284,15 +281,15 @@
   };
 
   var getListeners = function(dbName, objectStoreName) {
-    if (!connections[dbName]) {
+    if (!connections.has(dbName)) {
       return [];
     }
     var listeners = [];
-    connections[dbName].forEach(function(db) {
-      if (!db._listeners[objectStoreName]) {
+    connections.get(dbName).forEach(function(db) {
+      if (!db._listeners.has(objectStoreName)) {
         return;
       }
-      listeners = listeners.concat(db._listeners[objectStoreName]);
+      listeners = listeners.concat(db._listeners.get(objectStoreName));
     });
     return listeners;
   };
@@ -376,7 +373,6 @@
       var changeMap = tx._changes;
       tx._changes = [];
       for (var objectStoreName in changeMap) {
-        var unprotectedName = unprotectName(objectStoreName);
         var listeners = getListeners(tx.db.name, objectStoreName);
         var changesRecord = changeMap[objectStoreName];
         for (var i = 0; i < listeners.length; i++) {
@@ -384,7 +380,7 @@
           var metadata = {
             initializing: false,
             db: listener.db,
-            objectStoreName: unprotectedName,
+            objectStoreName: objectStoreName,
             isExternalChange: false
           };
           var changes = changesRecord.changes;
@@ -402,9 +398,7 @@
             changes = null;
           }
           if (listener.options.includeTransaction) {
-            var osNames = Object.keys(listener.ranges).map(function(value) {
-              return unprotectName(value);
-            });
+            var osNames = Object.keys(listener.ranges);
             metadata.transaction = tx.db.transaction(osNames, 'readonly');
           }
           listener.fcn(changes, metadata);
