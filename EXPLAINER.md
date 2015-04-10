@@ -10,7 +10,7 @@ Documentation & FAQ of observers
       - [`options` Argument](#options-argument)
       - [Observer Function](#observer-function)
           - [`changes` Argument](#changes-argument)
-          - [`metadata` Argument](#metadata-argument)
+          - [`records`](#records)
       - [Return Value](#return-value)
       - [Example Usage](#example-usage)
 - [Culling](#culling)
@@ -30,7 +30,7 @@ Use cases for observers include:
  * Simplified application logic
 
 # IDBDatabase.observe(...)
-The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
+The function `IDBDatabase.observe(objectStores, function(changes){...}, options)` will be added.
 
 #### `objectStores` Argument
 ```js
@@ -61,35 +61,41 @@ The passed function will be called whenever a transaction is successfully comple
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
 
 ###### `changes` Argument
-The **`changes`** argument is a JS array, with each value containing:
- * `type`: `add`, `put`, `delete`, or `clear`
- * optional `key`: The key or IDBKeyRange for the operation (the `clear` type does not populate a key)
- * optional `value`: The value inserted into the database by `add` or `put`.  Included if the `includeValues` option is specified.
-Example **changes** array:
+The **`changes`** argument includes the following:
 ```js
-[{"type":"add","key":1,"value":"val1"},
- {"type":"add","key":2,"value":"val2"},
- {"type":"put","key":4,"value":"val4"},
- {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":5,"lower":5}}]
-```
-These changes are culled.  See the [Culling](#culling) section below.
-
-###### `metadata` Argument
-The `metadata` includes the following:
-```js
-metadata: {
+changes: {
   initializing: <boolean>, // If this is the initialization call for the observer.
   db: <object>, // The database connection object.  If null, then the change
                 // was external.
-  objectStoreName: <string>, // The name of the object store that was changed
-  transaction: <object>  // A readonly transaction over the object stores that
+  isExternal: <string>,  // If the changes were from a different browsing context
+  transaction: <object>, // A readonly transaction over the object stores that
                          // this observer is listening to. This is populated when
                          // an observer is called for initialization, or always
                          // when includeTransaction is set in the options.
+  records: Map<string, Array<object>> // The changes, outlined below.
 }
 ```
+
 The `db` object is the same object that was used to create the observer.  If null, this means the change was external.
-Note:  Currently, there is one call to the observer per object store change, so objectStoreName is a string, not an array of strings.  This could be changed.
+
+###### `records`
+The records value in the changes object is a javascript Map of object store name to the array of change records.  This allows us to include changes from multiple object stores in our callback.  (Ex: you are observing object stores 'a' and 'b', and a transaction modifies both of them)
+
+The `key` of the map is the object store name, and the `value` element of the map is a JS array, with each value containing:
+ * `type`: `add`, `put`, `delete`, or `clear`
+ * optional `key`: The key or IDBKeyRange for the operation (the `clear` type does not populate a key)
+ * optional `value`: The value inserted into the database by `add` or `put`.  Included if the `includeValues` option is specified.
+Example **records** map:
+```js
+{'objectStore1' => [{"type":"add","key":1,"value":"val1"},
+                    {"type":"add","key":2,"value":"val2"},
+                    {"type":"put","key":4,"value":"val4"},
+                    {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":5,"lower":5}}],
+ 'objectStore2' => [{"type":"add","key":1,"value":"val1"},
+                    {"type":"add","key":2,"value":"val2"}]}
+```
+These changes are culled.  See the [Culling](#culling) section below.
+
 
 #### Return Value
 The return value of the `IDBDatabase.observe` fuction is the control object, which has the following functions:
