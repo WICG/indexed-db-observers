@@ -43,32 +43,34 @@ function main() {
   control = db.observe([objectStoreName], observerFunction);
 }
 
-function observerFunction(changes, metadata) {
-  if (metadata.initializing) {
+function observerFunction(changes) {
+  if (changes.initializing) {
     console.log('Observer is initializing.');
-    // read initial database state from metadata.transaction
+    // read initial database state from changes.transaction
     
   } else { 
-    console.log('Observer received changes for object store ', metadata.objectStoreName);
+    console.log('Observer received changes!');
     // An object store that we're observing has changed.
-    changes.forEach(function(change) {
-      console.log('Got change: ', change);
-      // do something with change.type and change.key
-      var type = change.type;
-      switch (type) {
-        case 'clear':
-          console.log('object store cleared.');
-          break;
-        case 'add':
-          console.log('key "', change.key, '" added.');
-          break;
-        case 'put':
-          console.log('key "', change.key, '" putted.');
-          break;
-        case 'delete':
-          console.log('key or range "', change.key, '" deleted.');
-          break;
-      }
+    changes.records.forEach(function(records, objectStoreName) {
+      console.log('Got changes for object store: ', objectStoreName);
+      records.forEach(function(change) {
+        // do something with change.type and change.key
+        var type = change.type;
+        switch (type) {
+          case 'clear':
+            console.log('object store cleared.');
+            break;
+          case 'add':
+            console.log('key "', change.key, '" added.');
+            break;
+          case 'put':
+            console.log('key "', change.key, '" putted.');
+            break;
+          case 'delete':
+            console.log('key or range "', change.key, '" deleted.');
+            break;
+        }
+      });
     });
   }
 }
@@ -76,12 +78,12 @@ function observerFunction(changes, metadata) {
 ```
 Here we ask for a readonly transaction in our changes:
 ```js
-var control = db.observe([objectStoreName], function(changes, metadata) {
-  if (metadata.initializing) {
+var control = db.observe([objectStoreName], function(changes) {
+  if (changes.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
   } else { 
-    var objectStore = metadata.transaction.objectStore('store1');
+    var objectStore = changes.transaction.objectStore('store1');
     // read in values, etc
   }
 }, { includeTransaction: true });
@@ -89,12 +91,12 @@ var control = db.observe([objectStoreName], function(changes, metadata) {
 
 Here we ask for the values in our changes:
 ```js
-var control = db.observe([objectStoreName], function(changes, metadata) {
-  if (metadata.initializing) {
+var control = db.observe([objectStoreName], function(changes) {
+  if (changes.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
   } else { 
-    changes.forEach(function(change) {
+    changes.records.get(objectStoreName).forEach(function(change) {
       var type = change.type;
       switch (type) {
         case 'add':
