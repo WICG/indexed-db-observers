@@ -23,6 +23,7 @@ Documentation & FAQ of observers
     - [Why only populate the objectStore name in the `changes` records map?](#why-only-populate-the-objectstore-name-in-the-changes-records-map)
     - [Why not use ES6 Proxies?](#why-not-use-es6-proxies)
     - [Why not more like Object.observe?](#why-not-more-like-objectobserve)
+    - [What realm are the change objects coming from?](#what-realm-are-the-change-objects-coming-from)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # Why?
@@ -190,3 +191,6 @@ The two main reasons are:
  2. We need to include changes from multiple object stores for a single callback.
  3. We can't include the 'old' values.
  4. Operation type conflicts:  'put' vs 'update'
+
+### What realm are the change objects coming from?
+All changes (the keys and values) are structured cloneable, and are cloned from IDB.  So they are not coming from a different realm.
