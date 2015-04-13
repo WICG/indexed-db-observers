@@ -115,7 +115,7 @@ control: {
 var control = db.observe(['objectStore'], function(changes) {
     if (changes.initializing) {
       console.log('Observer is initializing.');
-      // read initial database state from metadata.transaction
+      // read initial database state from changes.transaction
     } else { 
       var records = changes.records.get('objectStoreName');
       console.log('Observer got change records: ', records);
