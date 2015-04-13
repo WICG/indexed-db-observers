@@ -111,4 +111,4 @@ And when we're done...
 control.stop();
 ```
 
-See the [explainer](EXPLAINER.md) for more info, and the [examples](https://dmurph.github.io/indexed-db-observers/) for hosted examples.  The demo app is especially helpful, as it visualizes everything for you.
+See the [explainer](EXPLAINER.md) for more info, and the [examples](https://dmurph.github.io/indexed-db-observers/) for hosted examples. The demo app is especially helpful, as it visualizes everything for you.
