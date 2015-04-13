@@ -17,6 +17,7 @@ Documentation & FAQ of observers
 - [Culling](#culling)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
+- [Feature Detection](#feature-detection)
 - [FAQ](#faq)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
     - [Why only populate the objectStore name in the `changes` records map?](#why-only-populate-the-objectstore-name-in-the-changes-records-map)
@@ -149,6 +150,26 @@ https://dmurph.github.io/indexed-db-observers/
 
 # Open Issues
 Issues section here: https://github.com/dmurph/indexed-db-observers/issues
+
+# Feature Detection
+For future feature detection, I've included the following special case for calling `IDBDatabase.observe()` with no arguments:
+
+```js
+var features = db.observe(); // no arg call
+if (!features.includeTransaction || !features.includeValues) {
+  // etc
+}
+```
+
+This returns a js object that includes the options that are supported.  By default this is:
+```js
+{
+  includeValues: true,
+  includeTransaction: true,
+  excludeRecords: true,
+  onlyExternal: true
+};
+```
 
 # FAQ
 ### Why not expose 'old' values?

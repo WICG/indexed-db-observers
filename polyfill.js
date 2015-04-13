@@ -326,7 +326,17 @@
     }
   };
 
+  var supportedOptions = {
+    includeValues: true,
+    includeTransaction: true,
+    excludeRecords: true,
+    onlyExternal: true
+  };
+
   IDBDatabase.prototype.observe = function(namesOrNamesAndRanges, listenerFunction, options) {
+    if (arguments.length == 0) {
+      return supportedOptions;
+    }
     var sanitizedNamesAndRanges = [];
     if (!Array.isArray(namesOrNamesAndRanges)) {
       console.error('Object stores must be an array.');
