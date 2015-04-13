@@ -379,6 +379,9 @@
           records: new Map()
         };
         listener.ranges.forEach(function(range, osName) {
+            if (!changeMap.has(osName)) {
+              return;
+            }
             var changesRecord = changeMap.get(osName);
             var osRecords = changesRecord.changes;
             if (listener.options.includeValues) {
