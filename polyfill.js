@@ -328,39 +328,24 @@
 
   IDBDatabase.prototype.observe = function(namesOrNamesAndRanges, listenerFunction, options) {
     var sanitizedNamesAndRanges = [];
-    if (typeof namesOrNamesAndRanges === 'string') {
-      sanitizedNamesAndRanges = [{ name: namesOrNamesAndRanges }];
-    } else if (typeof namesOrNamesAndRanges === 'object') {
-      if (Array.isArray(namesOrNamesAndRanges)) {
-        for (var i = 0; i < namesOrNamesAndRanges.length; i++) {
-          var argEntry = namesOrNamesAndRanges[i];
-          if (typeof argEntry === "string") {
-            argEntry = { name: argEntry };
-          }
-          if (!argEntry.name) {
-            console.log('No name provided for namesAndRanges array entry: ', argEntry);
-            continue;
-          }
-          var entry = {
-            name: argEntry.name,
-            range: argEntry.range
-          }
-          sanitizedNamesAndRanges.push(entry);
-        }
-      } else {
-        if (!namesOrNamesAndRanges.name) {
-          console.log('No name provided for namesAndRanges: ', namesOrNamesAndRanges);
-          return null;
-        }
-        var entry = {
-          name: namesOrNamesAndRanges.name,
-          range: namesOrNamesAndRanges.range
-        };  
-        sanitizedNamesAndRanges.push(entry);
-      }
-    } else {
-      console.log('unknown namesOrNamesAndRanges argument: ', namesOrNamesAndRanges);
+    if (!Array.isArray(namesOrNamesAndRanges)) {
+      console.error('Object stores must be an array.');
       return null;
+    }
+    for (var i = 0; i < namesOrNamesAndRanges.length; i++) {
+      var argEntry = namesOrNamesAndRanges[i];
+      if (typeof argEntry === "string") {
+        argEntry = { name: argEntry };
+      }
+      if (!argEntry.name) {
+        console.log('No name provided for namesAndRanges array entry: ', argEntry);
+        continue;
+      }
+      var entry = {
+        name: argEntry.name,
+        range: argEntry.range
+      }
+      sanitizedNamesAndRanges.push(entry);
     }
     if (sanitizedNamesAndRanges.length == 0) {
       console.log('could not parse namesOrNamesAndRanges argument');
@@ -369,7 +354,7 @@
     var sanatizedOptions = {
       includeValues: options ? !!options.includeValues : false,
       includeTransaction: options ? !!options.includeTransaction : false,
-      excludeChanges: options ? !!options.excludeChanges : false,
+      excludeRecords: options ? !!options.excludeRecords : false,
       onlyExternal: options ? !!options.onlyExternal : false
     }
     return addObserver(this, sanitizedNamesAndRanges, listenerFunction, sanatizedOptions);
@@ -405,7 +390,7 @@
             if (osRecords.length == 0) {
               return;
             }
-            if (listener.options.excludeChanges) {
+            if (listener.options.excludeRecords) {
               osRecords = null;
             }
             changes.records.set(osName, osRecords);

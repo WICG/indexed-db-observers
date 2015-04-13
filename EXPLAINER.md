@@ -4,6 +4,7 @@ Documentation & FAQ of observers
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
+
 - [Why?](#why)
 - [IDBDatabase.observe(...)](#idbdatabaseobserve)
       - [`objectStores` Argument](#objectstores-argument)
@@ -18,6 +19,9 @@ Documentation & FAQ of observers
 - [Open Issues](#open-issues)
 - [FAQ](#faq)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
+    - [Why only populate the objectStore name in the `changes` records map?](#why-only-populate-the-objectstore-name-in-the-changes-records-map)
+    - [Why not use ES6 Proxies?](#why-not-use-es6-proxies)
+    - [Why not more like Object.observe?](#why-not-more-like-objectobserve)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # Why?
@@ -34,10 +38,8 @@ The function `IDBDatabase.observe(objectStores, function(changes){...}, options)
 
 #### `objectStores` Argument
 ```js
-"objectStore1"
-// or
-{ name: "objectStore1", range: IDBKeyRange.only(3) }
-// or
+// Each store can be the string name or an object with the name and a range.
+// The argument must be in array.
 [ "objectStore1", { name: "objectStore2", range: IDBKeyRange.bound(0, 1000) } ] 
 ```
 
@@ -46,7 +48,7 @@ The function `IDBDatabase.observe(objectStores, function(changes){...}, options)
 options: {
   includeValues: false,      // includes the 'value' of each change in the change array
   includeTransaction: false, // includes a readonly transaction in the observer callback
-  excludeChanges: false,     // changes are excluded (null)
+  excludeRecords: false,     // records are excluded (null)
   onlyExternal:   false      // only listen for changes from other browsing contexts
 }
 ```
@@ -96,7 +98,6 @@ Example **records** map:
 ```
 These changes are culled.  See the [Culling](#culling) section below.
 
-
 #### Return Value
 The return value of the `IDBDatabase.observe` fuction is the control object, which has the following functions:
 ```js
@@ -108,19 +109,15 @@ control: {
 #### Example Usage
 ```js
 // ... assume 'db' is the database connection
-var control = db.observe(['objectStore'], function(changes, metadata) {
-      if (!metadata.initializing) {
-        console.log("Observer received changes for object store '" + metadata.objectStoreName + "': ",
-                    JSON.stringify(changes));
-        // An object store that we're observing has changed.
-        changes.forEach(function(change) {
-          // do something with change.type and change.key
-        });
-      } else {
-        console.log('Observer is initializing.');
-        // read initial database state from metadata.transaction
-      }
-    });
+var control = db.observe(['objectStore'], function(changes) {
+    if (changes.initializing) {
+      console.log('Observer is initializing.');
+      // read initial database state from metadata.transaction
+    } else { 
+      var records = changes.records.get('objectStoreName');
+      console.log('Observer got change records: ', records);
+    }
+  });
 ``` 
 
 # Culling
@@ -156,3 +153,19 @@ Issues section here: https://github.com/dmurph/indexed-db-observers/issues
 # FAQ
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return.  Instead we can store range delete metadata to shortcut these operations when it makes sense.  Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
+
+### Why only populate the objectStore name in the `changes` records map?
+Object store objects are only valid when retrieved from transactions.  The only relevant information of that object outside of the transaction is the name of the object store.  Since the transaction is optional for the observation callback, we aren't guaranteed to be able to create the IDBObjectStore object for the observer.   However, it is easy for the observer to retrieve this object by
+ 1. Specifying `includeTransaction` in the options map
+ 2. calling changes.transaction.objectStore(name)
+
+### Why not use ES6 Proxies?
+The two main reasons are:
+ 1. We need to observe changes across browsing contexts.  Passing a proxy across browsing contexts in not possible, and it's infeasible to have every browsing context create a proxy and give it to everyone else (n*n total proxies).
+ 2. Changes are committed on a per-transaction basis, and can include changes to multiple object stores.  We can encompass this is an easy way when we control the observation function, where this would require specialized and complex logic by the client if it was proxy-based.
+
+### Why not more like Object.observe?
+ 1. We need to include a lot more metadata, like transactions.
+ 2. We need to include changes from multiple object stores for a single callback.
+ 3. We can't include the 'old' values.
+ 4. Operation type conflicts:  'put' vs 'update'

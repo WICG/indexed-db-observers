@@ -49,7 +49,7 @@
     req.onsuccess = function() {
       db1 = req.result;
       log("Database connection 1 created.");
-      observer1 = db1.observe(osname, function(changes) {
+      observer1 = db1.observe([osname], function(changes) {
         log("Connection 1 observer received changes: <br/>&nbsp;&nbsp; " + prettifyChanges(changes));
         if (changes.initializing) {
           log('(initializing)');
