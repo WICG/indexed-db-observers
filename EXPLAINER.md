@@ -72,7 +72,7 @@ changes: {
   initializing: <boolean>, // If this is the initialization call for the observer.
   db: <object>, // The database connection object. If null, then the change
                 // was external.
-  isExternal: <boolean>,  // If the changes were from a different browsing context
+  isExternal: <boolean>, // If the changes were from a different browsing context
   transaction: <object>, // A readonly transaction over the object stores that
                          // this observer is listening to. This is populated when
                          // an observer is called for initialization, or always
@@ -108,10 +108,9 @@ control: {
   stop: function(){...},   // This stops the observer permanently.
   isAlive: fuction(){...}, // This returns if the observer is alive
 }
+``` 
+The observer is alive (and continues observing changes) until stop() is called.  The IndexedDB system could also close observers on failure cases like corruption (see Issue #9).
 
-The observer is alive until stop() is called.  The IndexedDB system could also close observers on failure cases like corruption (see Issue #9).
-
-```
 #### Example Usage
 ```js
 // ... assume 'db' is the database connection
