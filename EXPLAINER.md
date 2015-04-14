@@ -72,7 +72,7 @@ changes: {
   initializing: <boolean>, // If this is the initialization call for the observer.
   db: <object>, // The database connection object. If null, then the change
                 // was external.
-  isExternal: <string>,  // If the changes were from a different browsing context
+  isExternal: <boolean>,  // If the changes were from a different browsing context
   transaction: <object>, // A readonly transaction over the object stores that
                          // this observer is listening to. This is populated when
                          // an observer is called for initialization, or always
@@ -106,8 +106,11 @@ The return value of the `IDBDatabase.observe` fuction is the control object, whi
 ```js
 control: {
   stop: function(){...},   // This stops the observer permanently.
-  isAlive: fuction(){...}, // This returns if the observer is alive.
+  isAlive: fuction(){...}, // This returns if the observer is alive
 }
+
+The observer is alive until stop() is called.  The IndexedDB system could also close observers on failure cases like corruption (see Issue #9).
+
 ```
 #### Example Usage
 ```js
@@ -172,6 +175,8 @@ This returns a js object that includes the options that are supported. By defaul
   onlyExternal: true
 };
 ```
+
+Any suggestions for better ways to do this is appreciated, I can't find any normal way to do this.
 
 # FAQ
 ### Why not expose 'old' values?
