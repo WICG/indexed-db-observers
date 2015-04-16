@@ -12,7 +12,7 @@ Documentation & FAQ of observers
       - [Observer Function](#observer-function)
           - [`changes` Argument](#changes-argument)
           - [`records`](#records)
-      - [Return Value](#return-value)
+      - [Return Value & Lifetime](#return-value-lifetime)
       - [Example Usage](#example-usage)
 - [Culling](#culling)
 - [Examples](#examples)
@@ -101,7 +101,7 @@ Example **records** map:
 ```
 These changes are culled. See the [Culling](#culling) section below.
 
-#### Return Value
+#### Return Value & Lifetime
 The return value of the `IDBDatabase.observe` fuction is the control object, which has the following functions:
 ```js
 control: {
@@ -109,7 +109,9 @@ control: {
   isAlive: fuction(){...}, // This returns if the observer is alive
 }
 ``` 
-The observer is alive (and continues observing changes) until stop() is called.  The IndexedDB system could also close observers on failure cases like corruption (see Issue #9).
+The observer is alive (and continues observing changes) until stop() is called, or the database connection is was created with is closed.
+
+In cases like corruption, the database connection is automatically closed, and that will then close all of the observers (see Issue #9).  
 
 #### Example Usage
 ```js
