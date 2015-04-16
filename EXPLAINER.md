@@ -12,7 +12,7 @@ Documentation & FAQ of observers
       - [Observer Function](#observer-function)
           - [`changes` Argument](#changes-argument)
           - [`records`](#records)
-      - [Return Value & Lifetime](#return-value-lifetime)
+      - [Return Value & Lifetime](#return-value--lifetime)
       - [Example Usage](#example-usage)
 - [Culling](#culling)
 - [Examples](#examples)
