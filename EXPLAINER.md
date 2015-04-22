@@ -20,6 +20,7 @@ Documentation & FAQ of observers
 - [Feature Detection](#feature-detection)
 - [FAQ](#faq)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
+    - [Why not issue deletes instead a clear?](#why-not-issue-deletes-instead-a-clear)
     - [How do I know I have a true state?](#how-do-i-know-i-have-a-true-state)
     - [Why only populate the objectStore name in the `changes` records map?](#why-only-populate-the-objectstore-name-in-the-changes-records-map)
     - [Why not use ES6 Proxies?](#why-not-use-es6-proxies)
@@ -183,6 +184,9 @@ Any suggestions for better ways to do this is appreciated, I can't find any norm
 # FAQ
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return. Instead we can store range delete metadata to shortcut these operations when it makes sense. Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
+
+### Why not issue 'deletes' instead a 'clear'?
+Following from the answer above, IndexedDB's API is designed to allow mass deletion optimization, and in order to have the 'deletes instead of clear' functionality, this would involve expensive read operations within the database.  If an observer needed to know exactly what was deleted, they can maintain their own state of the keys that they care about.
 
 ### How do I know I have a true state?
 One might need to guarentee that their observer can see a true, consistant state of the world. This is accomplished by specifying the `includeTransaction` option. This means that every observation callback will receive a readonly transaction for the object store/s that it is observing. It can then use this transaction to see the true state of the world. This transaction will take place immediately after the transaction in which the given changes were performed is completed.
