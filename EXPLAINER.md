@@ -20,7 +20,7 @@ Documentation & FAQ of observers
 - [Feature Detection](#feature-detection)
 - [FAQ](#faq)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
-    - [Why not issue deletes instead a clear?](#why-not-issue-deletes-instead-a-clear)
+    - [Why not issue 'deletes' instead a 'clear'?](#why-not-issue-deletes-instead-a-clear)
     - [How do I know I have a true state?](#how-do-i-know-i-have-a-true-state)
     - [Why only populate the objectStore name in the `changes` records map?](#why-only-populate-the-objectstore-name-in-the-changes-records-map)
     - [Why not use ES6 Proxies?](#why-not-use-es6-proxies)
@@ -108,7 +108,7 @@ The return value of the `IDBDatabase.observe` fuction is the control object, whi
 ```js
 control: {
   stop: function(){...},   // This stops the observer permanently.
-  isAlive: fuction(){...}, // This returns if the observer is alive
+  isAlive: function(){...}, // This returns if the observer is alive
 }
 ``` 
 The observer is alive (and continues observing changes) until stop() is called, or the database connection is was created with is closed.
