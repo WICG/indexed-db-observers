@@ -12,7 +12,7 @@ Documentation & FAQ of observers
       - [Observer Function](#observer-function)
           - [`changes` Argument](#changes-argument)
           - [`records`](#records)
-      - [Return Value & Lifetime](#return-value--lifetime)
+      - [Return Value & Lifetime](#return-value-&-lifetime)
       - [Example Usage](#example-usage)
 - [Culling](#culling)
 - [Examples](#examples)
@@ -25,6 +25,7 @@ Documentation & FAQ of observers
     - [Why not use ES6 Proxies?](#why-not-use-es6-proxies)
     - [Why not more like Object.observe?](#why-not-more-like-objectobserve)
     - [What realm are the change objects coming from?](#what-realm-are-the-change-objects-coming-from)
+    - [Why not use events?](#why-not-use-events)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # Why?
@@ -204,3 +205,10 @@ The two main reasons are:
 
 ### What realm are the change objects coming from?
 All changes (the keys and values) are structured cloneable, and are cloned from IDB. So they are not coming from a different realm.
+
+### Why not use events?
+This was the initial plan, but we moved away from this because:
+ 1. There isn't a clear 'target' that makes sense when dealing with cross-context changes.
+ 2. There isn't a mechanism to provide options.
+ 3. Propogation doesn't really happen/isn't needed, as well as other event features.
+ 4. It adds an extra layer that isn't needed.
