@@ -1,5 +1,5 @@
 partial interface IDBDatabase {
-    [CallWith=ScriptState, RaisesException] IDBObserverControl observe((sequence<DOMString> or sequence<IDBObserverDataStoreRange>) objectStores, IDBObserverCallback callback, optional IDBObserverOptions options);
+    [RaisesException, NewObject] IDBObserverControl observe((sequence<DOMString> or sequence<IDBObserverDataStoreRange>) objectStores, IDBObserverCallback callback, optional IDBObserverOptions options);
 };
 
 interface IDBObserverControl {
