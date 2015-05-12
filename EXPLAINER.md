@@ -14,6 +14,8 @@ Documentation & FAQ of observers
           - [`records`](#records)
       - [Return Value & Lifetime](#return-value-&-lifetime)
       - [Example Usage](#example-usage)
+- [Other Versions](#event-version)
+      - [Event Version](#event-version)
 - [Culling](#culling)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
@@ -27,6 +29,7 @@ Documentation & FAQ of observers
     - [Why not more like Object.observe?](#why-not-more-like-objectobserve)
     - [What realm are the change objects coming from?](#what-realm-are-the-change-objects-coming-from)
     - [Why not use events?](#why-not-use-events)
+    - [Why not observe from ObjectStore object?](#why-not-observe-from-objectstore-object)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # Why?
@@ -129,6 +132,35 @@ var control = db.observe(['objectStore'], function(changes) {
   });
 ``` 
 
+# Other Versions
+These are other options for the API based on conversations.
+
+## Event Version
+We can move to an event version of this based on Mozilla's model here:
+https://bugzilla.mozilla.org/show_bug.cgi?id=1059724#c1
+
+This would result in the following version of the example code, where the 'changes' argument has changed to an event:
+```js
+// ... assume 'db' is the database connection
+var observer = db.observe(['objectStore']);
+observer.onchange = function(event) {
+  if (event.initializing) {
+    console.log('Observer is initializing.');
+    // read initial database state from changes.transaction
+  } else { 
+    var records = event.records.get('objectStoreName');
+    console.log('Observer got change records: ', records);
+  }
+}
+```
+
+The `stop()` and `isAlive()` functions would still live on this observer object.
+
+Pros:
+ * The event pattern is more common to the web platform.
+Cons:
+ * This adds one extra line of code
+
 # Culling
 The changes given to the observer are culled. This eliminated changes that are overwriten in the same transaction or redundant. Here are some examples:
  1. add 'a', 1
@@ -210,9 +242,18 @@ The two main reasons are:
 ### What realm are the change objects coming from?
 All changes (the keys and values) are structured cloneable, and are cloned from IDB. So they are not coming from a different realm.
 
-### Why not use events?
-This was the initial plan, but we moved away from this because:
- 1. There isn't a clear 'target' that makes sense when dealing with cross-context changes.
- 2. There isn't a mechanism to provide options.
- 3. Propogation doesn't really happen/isn't needed, as well as other event features.
- 4. It adds an extra layer that isn't needed.
+### Why not observe from ObjectStore object?
+This makes it so developers cannot reliable observe multiple object stores at the same time.  Example:
+
+Given
+ * Object stores os1, os2
+ * Observers o1, o2 (listeneing to os1, os2 respectively)
+
+Order of operations
+ * T1 modified os1, os2
+ * o1 gets changes from T1
+ * T2 modifies o1
+ * o2 gets changes from T1
+ * o1 gets changes from T2
+
+Even if o1 records the changes from T1 for o2, there is no guarentee that o2 it gets the changes from T1 before another transaction changes o1 again.
