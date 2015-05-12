@@ -14,6 +14,7 @@ Documentation & FAQ of observers
           - [`records`](#records)
       - [Return Value & Lifetime](#return-value-&-lifetime)
       - [Example Usage](#example-usage)
+- [Observation Consistancy & Guarantees](#observation-consistancy-&-guarantees)
 - [Other Versions](#event-version)
       - [Event Version](#event-version)
 - [Culling](#culling)
@@ -44,6 +45,8 @@ Use cases for observers include:
 # IDBDatabase.observe(...)
 The function `IDBDatabase.observe(objectStores, function(changes){...}, options)` will be added.
 
+This function acts similar to creating a transaction with the 'readonly' mode of the given object stores.  For initialization, a readonly transaction is created (over the given object stores) and given to the callback so it can read any initial state that it wants.  See below for more info.
+
 #### `objectStores` Argument
 ```js
 // Each store can be the string name or an object with the name and a range.
@@ -66,6 +69,8 @@ By default, the observer is only given the keys of changed items and no transact
  * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active duing the callback, and becomes inactive at the end of the callback task or microtask.
 
 #### Observer Function
+The observer function is always called first with a readonly transaction over the object stores that it wants to observe.  This sets the `changes.initializing` variable to true.  This allows the observer to establish the 'true' state of the world, after which the observer starts observing.
+
 The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change, even if they came from the same transaction (this can be changed). If a transaction doesn't make a change to the object store, then the observer is not fired.
 
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
@@ -130,7 +135,18 @@ var control = db.observe(['objectStore'], function(changes) {
       console.log('Observer got change records: ', records);
     }
   });
-``` 
+```
+
+# Observation Consistancy & Guarantees
+To give the observer strong consistancy of the world that it is observing, we need to allow it to 
+ 1. Know the contents of the observing object stores before observation starts (after which all changes will be sent to the observer)
+ 2. Read the observing object stores at each change observation.
+
+We accomplish #1 by doing the `changes.initializing` initial callback with the readonly transaction.  After this callback (and transaction reads), all subsequent changes to the observing object stores will be sent to the observer.
+
+For #2, we optionally allow the observer to
+ 1. Include the values of the changed keys.  Since we know the initial state, with the keys & values of all changes we can maintain a consistant state of the object stores.
+ 2. Include a readonly transaction of the observing object stores.  This transaction is scheduled right after the transaction that made these changes, so the object store will be consistant with the 'post observe' world.
 
 # Other Versions
 These are other options for the API based on conversations.
@@ -158,6 +174,7 @@ The `stop()` and `isAlive()` functions would still live on this observer object.
 
 Pros:
  * The event pattern is more common to the web platform.
+
 Cons:
  * This adds one extra line of code
 
