@@ -127,14 +127,14 @@ In cases like corruption, the database connection is automatically closed, and t
 ```js
 // ... assume 'db' is the database connection
 var control = db.observe(['objectStore'], function(changes) {
-    if (changes.initializing) {
-      console.log('Observer is initializing.');
-      // read initial database state from changes.transaction
-      return;
-    }
-    var records = changes.records.get('objectStore');
-    console.log('Observer got change records: ', records);
-  });
+  if (changes.initializing) {
+    console.log('Observer is initializing.');
+    // read initial database state from changes.transaction
+    return;
+  }
+  var records = changes.records.get('objectStore');
+  console.log('Observer got change records: ', records);
+});
 ```
 
 # Observation Consistancy & Guarantees
@@ -167,7 +167,7 @@ observer.onchange = function(event) {
   }
   var records = changes.records.get('objectStore');
   console.log('Observer got change records: ', records);
-}
+};
 ```
 
 The `stop()` and `isAlive()` functions would still live on this observer object.
