@@ -17,6 +17,7 @@ Documentation & FAQ of observers
 - [Observation Consistancy & Guarantees](#observation-consistancy--guarantees)
 - [Other Versions](#event-version)
       - [Event Version](#event-version)
+      - [In-Transaction Creation, No `initializing` State](#in-transaction-creation-no-initializing-state)
 - [Culling](#culling)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
@@ -29,7 +30,6 @@ Documentation & FAQ of observers
     - [Why not use ES6 Proxies?](#why-not-use-es6-proxies)
     - [Why not more like Object.observe?](#why-not-more-like-objectobserve)
     - [What realm are the change objects coming from?](#what-realm-are-the-change-objects-coming-from)
-    - [Why not use events?](#why-not-use-events)
     - [Why not observe from ObjectStore object?](#why-not-observe-from-objectstore-object)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -177,6 +177,29 @@ Pros:
 
 Cons:
  * This adds one extra line of code
+
+## In-Transaction Creation, No `initializing` State
+Another idea is to add behavior involving tieing an oberver to a currently running transaction.
+
+Instead of creating the observer on a database connection, the observer would be created on a transaction.  There would still need to be a way to express observation ranges, so the arguments would probably stay the same.  The following rules would be introduced:
+ 1. An observer starts observing after the transaction is committed.
+ 2. An observer now must be created from within a transaction.
+
+Pros:
+ * There would no longer be an 'initializing' state, and that variable would go away.  Instead, the user could use the surrounding transaction to determine the initial state of the world.
+ * The user can integrate the observer into their current transactions, and know exactly when the observation starts in their workflow.
+
+Cons:
+ * This adds more complexity.
+ * Confusing whether changes in the current transaction will be observed, e.g. if they are done after the observer is created.
+ * Users are confused why they need to create the observer in a transaction.
+ * This messes with the current transaction order, as this could insert the observer readonly transaction before another transaction that is waiting to be committed.
+ * More complex to implement.
+
+Questions/variations:
+ * To enable the creation of observers outside a transaction, the `observe` method could remain on the db connection object, and either accept an optional transaction object or use the 'active' transaction idea.  (since we can create transactions in transactions, this could be complex).
+ * To allow observation of changes in the onupgradeneeded event, we can change the rule to say the all changes that happen after the obervation creation are then observed in the observer.  This adds complexity to implementation and behavior (users would see side effects they might not expect).
+ * Can we remove the need to specify object stores if we use the ones the transaction is using?  Yes, but we remove the ability to select ranges.  This possibly removes one of the Pros, as the user might be forced to observe object stores they don't want if they are trying to integrate this with a currently running IndexedDB workflow.
 
 # Culling
 The changes given to the observer are culled. This eliminated changes that are overwriten in the same transaction or redundant. Here are some examples:
