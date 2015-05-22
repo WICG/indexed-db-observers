@@ -45,32 +45,31 @@ function observerFunction(changes) {
   if (changes.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from changes.transaction
-    
-  } else { 
-    console.log('Observer received changes!');
-    // An object store that we're observing has changed.
-    changes.records.forEach(function(records, objectStoreName) {
-      console.log('Got changes for object store: ', objectStoreName);
-      records.forEach(function(change) {
-        // do something with change.type and change.key
-        var type = change.type;
-        switch (type) {
-          case 'clear':
-            console.log('object store cleared.');
-            break;
-          case 'add':
-            console.log('key "', change.key, '" added.');
-            break;
-          case 'put':
-            console.log('key "', change.key, '" putted.');
-            break;
-          case 'delete':
-            console.log('key or range "', change.key, '" deleted.');
-            break;
-        }
-      });
-    });
+    return;
   }
+  console.log('Observer received changes!');
+  // An object store that we're observing has changed.
+  changes.records.forEach(function(records, objectStoreName) {
+    console.log('Got changes for object store: ', objectStoreName);
+    records.forEach(function(change) {
+      // do something with change.type and change.key
+      var type = change.type;
+      switch (type) {
+        case 'clear':
+          console.log('object store cleared.');
+          break;
+        case 'add':
+          console.log('key "', change.key, '" added.');
+          break;
+        case 'put':
+          console.log('key "', change.key, '" putted.');
+          break;
+        case 'delete':
+          console.log('key or range "', change.key, '" deleted.');
+          break;
+      }
+    });
+  });
 }
 </script>
 ```
@@ -93,16 +92,16 @@ var control = db.observe([objectStoreName], function(changes) {
   if (changes.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
-  } else { 
-    changes.records.get(objectStoreName).forEach(function(change) {
-      var type = change.type;
-      switch (type) {
-        case 'add':
-          console.log('value "', change.value, '" added with key "', change.key, '"');
-          break;
-      }
-    });
+    return;
   }
+  changes.records.get(objectStoreName).forEach(function(change) {
+    var type = change.type;
+    switch (type) {
+      case 'add':
+        console.log('value "', change.value, '" added with key "', change.key, '"');
+        break;
+    }
+  });
 }, { includeValues: true });
 ```
 
