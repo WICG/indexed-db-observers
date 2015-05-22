@@ -130,10 +130,10 @@ var control = db.observe(['objectStore'], function(changes) {
     if (changes.initializing) {
       console.log('Observer is initializing.');
       // read initial database state from changes.transaction
-    } else { 
-      var records = changes.records.get('objectStoreName');
-      console.log('Observer got change records: ', records);
+      return;
     }
+    var records = changes.records.get('objectStore');
+    console.log('Observer got change records: ', records);
   });
 ```
 
@@ -163,10 +163,10 @@ observer.onchange = function(event) {
   if (event.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from changes.transaction
-  } else { 
-    var records = event.records.get('objectStoreName');
-    console.log('Observer got change records: ', records);
+    return;
   }
+  var records = changes.records.get('objectStore');
+  console.log('Observer got change records: ', records);
 }
 ```
 
@@ -185,6 +185,17 @@ Instead of creating the observer on a database connection, the observer would be
  1. An observer starts observing after the transaction is committed.
  2. An observer now must be created from within a transaction.
 
+```js
+// ... assume 'db' is the database connection
+var txn = db.transaction(['objectStore'], 'readwrite');
+// ...
+// initialize / read in initial state
+// ...
+var control = txn.observe(['objectStore'], function(changes) {
+  var records = changes.records.get('objectStore');
+  console.log('Observer got change records: ', records);
+});
+```
 Pros:
  * There would no longer be an 'initializing' state, and that variable would go away.  Instead, the user could use the surrounding transaction to determine the initial state of the world.
  * The user can integrate the observer into their current transactions, and know exactly when the observation starts in their workflow.
