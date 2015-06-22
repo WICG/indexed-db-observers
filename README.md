@@ -1,5 +1,5 @@
 # indexed-db-observers
-Prototyping and discussion around indexeddb observers.
+Prototyping and discussion around IndexedDB observers.
 
  * [Explainer & FAQ](EXPLAINER.md)
  * [Examples](https://dmurph.github.io/indexed-db-observers/)
@@ -11,13 +11,13 @@ The polyfill is located here:
 ```
 
 Caveats:
- * It doesn't broadcast changes accross browsing contexts.
+ * It doesn't broadcast changes across browsing contexts.
  * Not very memory efficient.
 
 # Usage
 The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
 
-You can drop this into your webpage right now (with small customization) and it should work:
+You can drop this into your web page right now (with small customization) and it should work:
 ```html
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 <script>
@@ -79,7 +79,7 @@ var control = db.observe([objectStoreName], function(changes) {
   if (changes.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from metadata.transaction
-  } else { 
+  } else {
     var objectStore = changes.transaction.objectStore('store1');
     // read in values, etc
   }

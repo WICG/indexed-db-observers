@@ -14,7 +14,7 @@ Documentation & FAQ of observers
           - [`records`](#records)
       - [Return Value & Lifetime](#return-value--lifetime)
       - [Example Usage](#example-usage)
-- [Observation Consistancy & Guarantees](#observation-consistancy--guarantees)
+- [Observation Consistency & Guarantees](#observation-consistency--guarantees)
 - [Other Versions](#event-version)
       - [Event Version](#event-version)
       - [In-Transaction Creation, No `initializing` State](#in-transaction-creation-no-initializing-state)
@@ -39,7 +39,7 @@ IndexedDB doesn't have any observer support. This could normally be implemented 
 Use cases for observers include:
  * Updating the UI from database changes (data binding).
  * Syncing local state from background worker (like a ServiceWorker) or another tab making changes.
- * Serializing changes for network communcation
+ * Serializing changes for network communication
  * Simplified application logic
 
 # IDBDatabase.observe(...)
@@ -51,7 +51,7 @@ This function acts similar to creating a transaction with the 'readonly' mode of
 ```js
 // Each store can be the string name or an object with the name and a range.
 // The argument must be in array.
-[ "objectStore1", { name: "objectStore2", range: IDBKeyRange.bound(0, 1000) } ] 
+[ "objectStore1", { name: "objectStore2", range: IDBKeyRange.bound(0, 1000) } ]
 ```
 
 #### `options` Argument
@@ -66,7 +66,7 @@ options: {
 
 By default, the observer is only given the keys of changed items and no transaction.
  * If `includeValues` is specified, then values for all `put` and `add` will be included. However, these values can be large depending on your use of the IndexedDB.
- * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active duing the callback, and becomes inactive at the end of the callback task or microtask.
+ * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
 
 #### Observer Function
 The observer function is always called first with a readonly transaction over the object stores that it wants to observe.  This sets the `changes.initializing` variable to true.  This allows the observer to establish the 'true' state of the world, after which the observer starts observing.
@@ -112,16 +112,16 @@ Example **records** map:
 These changes are culled. See the [Culling](#culling) section below.
 
 #### Return Value & Lifetime
-The return value of the `IDBDatabase.observe` fuction is the control object, which has the following functions:
+The return value of the `IDBDatabase.observe` function is the control object, which has the following functions:
 ```js
 control: {
   stop: function(){...},   // This stops the observer permanently.
   isAlive: function(){...}, // This returns if the observer is alive
 }
-``` 
+```
 The observer is alive (and continues observing changes) until stop() is called, or the database connection is was created with is closed.
 
-In cases like corruption, the database connection is automatically closed, and that will then close all of the observers (see Issue #9).  
+In cases like corruption, the database connection is automatically closed, and that will then close all of the observers (see Issue #9).
 
 #### Example Usage
 ```js
@@ -137,16 +137,16 @@ var control = db.observe(['objectStore'], function(changes) {
 });
 ```
 
-# Observation Consistancy & Guarantees
-To give the observer strong consistancy of the world that it is observing, we need to allow it to 
+# Observation Consistency & Guarantees
+To give the observer strong consistency of the world that it is observing, we need to allow it to
  1. Know the contents of the observing object stores before observation starts (after which all changes will be sent to the observer)
  2. Read the observing object stores at each change observation.
 
 We accomplish #1 by doing the `changes.initializing` initial callback with the readonly transaction.  After this callback (and transaction reads), all subsequent changes to the observing object stores will be sent to the observer.
 
 For #2, we optionally allow the observer to
- 1. Include the values of the changed keys.  Since we know the initial state, with the keys & values of all changes we can maintain a consistant state of the object stores.
- 2. Include a readonly transaction of the observing object stores.  This transaction is scheduled right after the transaction that made these changes, so the object store will be consistant with the 'post observe' world.
+ 1. Include the values of the changed keys.  Since we know the initial state, with the keys & values of all changes we can maintain a consistent state of the object stores.
+ 2. Include a readonly transaction of the observing object stores.  This transaction is scheduled right after the transaction that made these changes, so the object store will be consistent with the 'post observe' world.
 
 # Other Versions
 These are other options for the API based on conversations.
@@ -179,7 +179,7 @@ Cons:
  * This adds one extra line of code
 
 ## In-Transaction Creation, No `initializing` State
-Another idea is to add behavior involving tieing an oberver to a currently running transaction.
+Another idea is to add behavior involving tying an observer to a currently running transaction.
 
 Instead of creating the observer on a database connection, the observer would be created on a transaction.  There would still need to be a way to express observation ranges, so the arguments would probably stay the same.  The following rules would be introduced:
  1. An observer starts observing after the transaction is committed.
@@ -209,11 +209,11 @@ Cons:
 
 Questions/variations:
  * To enable the creation of observers outside a transaction, the `observe` method could remain on the db connection object, and either accept an optional transaction object or use the 'active' transaction idea.  (since we can create transactions in transactions, this could be complex).
- * To allow observation of changes in the onupgradeneeded event, we can change the rule to say the all changes that happen after the obervation creation are then observed in the observer.  This adds complexity to implementation and behavior (users would see side effects they might not expect).
+ * To allow observation of changes in the onupgradeneeded event, we can change the rule to say the all changes that happen after the observation creation are then observed in the observer.  This adds complexity to implementation and behavior (users would see side effects they might not expect).
  * Can we remove the need to specify object stores if we use the ones the transaction is using?  Yes, but we remove the ability to select ranges.  This possibly removes one of the Pros, as the user might be forced to observe object stores they don't want if they are trying to integrate this with a currently running IndexedDB workflow.
 
 # Culling
-The changes given to the observer are culled. This eliminated changes that are overwriten in the same transaction or redundant. Here are some examples:
+The changes given to the observer are culled. This eliminated changes that are overwritten in the same transaction or redundant. Here are some examples:
  1. add 'a', 1
  2. add 'b', 2
  3. put 'putA', 1
@@ -237,7 +237,7 @@ Note that these operations are still ordered. They are not a disjoint set.
 
 # Examples
 See the html files for examples, hosted here:
-https://dmurph.github.io/indexed-db-observers/ 
+https://dmurph.github.io/indexed-db-observers/
 
 # Open Issues
 Issues section here: https://github.com/dmurph/indexed-db-observers/issues
@@ -272,7 +272,7 @@ IndexedDB was designed to allow range delete optimizations so that `delete [0,10
 Following from the answer above, IndexedDB's API is designed to allow mass deletion optimization, and in order to have the 'deletes instead of clear' functionality, this would involve expensive read operations within the database.  If an observer needed to know exactly what was deleted, they can maintain their own state of the keys that they care about.
 
 ### How do I know I have a true state?
-One might need to guarentee that their observer can see a true, consistant state of the world. This is accomplished by specifying the `includeTransaction` option. This means that every observation callback will receive a readonly transaction for the object store/s that it is observing. It can then use this transaction to see the true state of the world. This transaction will take place immediately after the transaction in which the given changes were performed is completed.
+One might need to guarantee that their observer can see a true, consistent state of the world. This is accomplished by specifying the `includeTransaction` option. This means that every observation callback will receive a readonly transaction for the object store/s that it is observing. It can then use this transaction to see the true state of the world. This transaction will take place immediately after the transaction in which the given changes were performed is completed.
 
 ### Why only populate the objectStore name in the `changes` records map?
 Object store objects are only valid when retrieved from transactions. The only relevant information of that object outside of the transaction is the name of the object store. Since the transaction is optional for the observation callback, we aren't guaranteed to be able to create the IDBObjectStore object for the observer.  However, it is easy for the observer to retrieve this object by
@@ -298,7 +298,7 @@ This makes it so developers cannot reliable observe multiple object stores at th
 
 Given
  * Object stores os1, os2
- * Observers o1, o2 (listeneing to os1, os2 respectively)
+ * Observers o1, o2 (listening to os1, os2 respectively)
 
 Order of operations
  * T1 modified os1, os2
@@ -307,4 +307,4 @@ Order of operations
  * o2 gets changes from T1
  * o1 gets changes from T2
 
-Even if o1 records the changes from T1 for o2, there is no guarentee that o2 it gets the changes from T1 before another transaction changes o1 again.
+Even if o1 records the changes from T1 for o2, there is no guarantee that o2 it gets the changes from T1 before another transaction changes o1 again.

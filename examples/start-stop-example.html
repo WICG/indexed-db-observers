@@ -39,7 +39,7 @@
   var db1;
   var observer1;
 
-  function step1() { 
+  function step1() {
     log("Step 1: Create database connection 1 with observer");
     var req = indexedDB.open(dbname);
     req.onupgradeneeded = function() {
@@ -57,7 +57,7 @@
       });
       log("Database connection 1 created.")
       step2();
-    }; 
+    };
   }
 
   function step2() {
@@ -96,11 +96,11 @@
   <p>
     These examples show a prototype of IndexedDB observers.
     <ul>
-    <li><a href="/examples/basic-observing-example.html">Basic Observing Example</a>
-    <li><a href="examples/multiple-object-stores-example.html">Observing Multiple Object Stores</a>
-    <li><a href="/examples/start-stop-example.html">Starting and Stopping Observers</a>
-    <li><a href="/examples/multiple-connections-example.html">Observing Across Multiple Connections</a>
-    <li><a href="/examples/demo-app.html">Demo App (shows all functionality of observers)</a>
+    <li><a href="basic-observing-example.html">Basic Observing Example</a>
+    <li><a href="multiple-object-stores-example.html">Observing Multiple Object Stores</a>
+    <li><a href="start-stop-example.html">Starting and Stopping Observers</a>
+    <li><a href="multiple-connections-example.html">Observing Across Multiple Connections</a>
+    <li><a href="demo-app.html">Demo App (shows all functionality of observers)</a>
     </ul>
   </p>
 </div>
