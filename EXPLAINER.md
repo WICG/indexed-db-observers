@@ -1,6 +1,9 @@
 # Explainer
 Documentation & FAQ of observers
 **Please file an issue if you have any feedback :)**
+
+**NOTE: THIS DOCUMENTATION IS MORE UP TO DATE THAN THE POLYFILL/EXAMPLES**
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
@@ -42,17 +45,10 @@ Use cases for observers include:
  * Serializing changes for network communication
  * Simplified application logic
 
-# IDBDatabase.observe(...)
-The function `IDBDatabase.observe(objectStores, function(changes){...}, options)` will be added.
+# IDBTransaction.observe(...)
+The function `IDBTransaction.observe(function(changes){...}, options)` will be added.
 
-This function acts similar to creating a transaction with the 'readonly' mode of the given object stores.  For initialization, a readonly transaction is created (over the given object stores) and given to the callback so it can read any initial state that it wants.  See below for more info.
-
-#### `objectStores` Argument
-```js
-// Each store can be the string name or an object with the name and a range.
-// The argument must be in array.
-[ "objectStore1", { name: "objectStore2", range: IDBKeyRange.bound(0, 1000) } ]
-```
+This function causes an observer to be created for the object stores that the given transaction is operating on. The returned object is a 'control' object which can be used to stop the observer. The given function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or 'stop' is called on the control object.
 
 #### `options` Argument
 ```js
@@ -69,9 +65,9 @@ By default, the observer is only given the keys of changed items and no transact
  * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
 
 #### Observer Function
-The observer function is always called first with a readonly transaction over the object stores that it wants to observe.  This sets the `changes.initializing` variable to true.  This allows the observer to establish the 'true' state of the world, after which the observer starts observing.
+The observer function will begin being called when the transaction it is created from is completed. This allows the creator to read the 'true' state of the world before the observer starts. In other words, this allows the developer to control exactly when the observing begins.
 
-The passed function will be called whenever a transaction is successfully completed on the given object store. If the observer is listening to multiple object stores, the function will be called once per object store change, even if they came from the same transaction (this can be changed). If a transaction doesn't make a change to the object store, then the observer is not fired.
+The passed function will be called whenever a transaction is successfully completed on the given object store/s. The changes given to the function will be the 'culled' changes of each transaction. There is one observer callback per applicable transaction.
 
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
 
@@ -79,7 +75,6 @@ The function will continue observing until either the database connection used t
 The **`changes`** argument includes the following:
 ```js
 changes: {
-  initializing: <boolean>, // If this is the initialization call for the observer.
   db: <object>, // The database connection object. If null, then the change
                 // was external.
   isExternal: <boolean>, // If the changes were from a different browsing context
@@ -90,8 +85,6 @@ changes: {
   records: Map<string, Array<object>> // The changes, outlined below.
 }
 ```
-
-The `db` object is the same object that was used to create the observer. If null, this means the change was external.
 
 ###### `records`
 The records value in the changes object is a javascript Map of object store name to the array of change records. This allows us to include changes from multiple object stores in our callback. (Ex: you are observing object stores 'a' and 'b', and a transaction modifies both of them)
@@ -126,7 +119,8 @@ In cases like corruption, the database connection is automatically closed, and t
 #### Example Usage
 ```js
 // ... assume 'db' is the database connection
-var control = db.observe(['objectStore'], function(changes) {
+var txn = db.transaction(['objectStore'], 'readonly');
+var control = txn.observe(function(changes) {
   if (changes.initializing) {
     console.log('Observer is initializing.');
     // read initial database state from changes.transaction
@@ -142,7 +136,7 @@ To give the observer strong consistency of the world that it is observing, we ne
  1. Know the contents of the observing object stores before observation starts (after which all changes will be sent to the observer)
  2. Read the observing object stores at each change observation.
 
-We accomplish #1 by doing the `changes.initializing` initial callback with the readonly transaction.  After this callback (and transaction reads), all subsequent changes to the observing object stores will be sent to the observer.
+We accomplish #1 by incorporating a transaction into the creation of the observer. After this transaction completes (and has read anything that the observer needs to know), all subsequent changes to the observing object stores will be sent to the observer.
 
 For #2, we optionally allow the observer to
  1. Include the values of the changed keys.  Since we know the initial state, with the keys & values of all changes we can maintain a consistent state of the object stores.
@@ -176,41 +170,8 @@ Pros:
  * The event pattern is more common to the web platform.
 
 Cons:
- * This adds one extra line of code
-
-## In-Transaction Creation, No `initializing` State
-Another idea is to add behavior involving tying an observer to a currently running transaction.
-
-Instead of creating the observer on a database connection, the observer would be created on a transaction.  There would still need to be a way to express observation ranges, so the arguments would probably stay the same.  The following rules would be introduced:
- 1. An observer starts observing after the transaction is committed.
- 2. An observer now must be created from within a transaction.
-
-```js
-// ... assume 'db' is the database connection
-var txn = db.transaction(['objectStore'], 'readwrite');
-// ...
-// initialize / read in initial state
-// ...
-var control = txn.observe(['objectStore'], function(changes) {
-  var records = changes.records.get('objectStore');
-  console.log('Observer got change records: ', records);
-});
-```
-Pros:
- * There would no longer be an 'initializing' state, and that variable would go away.  Instead, the user could use the surrounding transaction to determine the initial state of the world.
- * The user can integrate the observer into their current transactions, and know exactly when the observation starts in their workflow.
-
-Cons:
- * This adds more complexity.
- * Confusing whether changes in the current transaction will be observed, e.g. if they are done after the observer is created.
- * Users are confused why they need to create the observer in a transaction.
- * This messes with the current transaction order, as this could insert the observer readonly transaction before another transaction that is waiting to be committed.
- * More complex to implement.
-
-Questions/variations:
- * To enable the creation of observers outside a transaction, the `observe` method could remain on the db connection object, and either accept an optional transaction object or use the 'active' transaction idea.  (since we can create transactions in transactions, this could be complex).
- * To allow observation of changes in the onupgradeneeded event, we can change the rule to say the all changes that happen after the observation creation are then observed in the observer.  This adds complexity to implementation and behavior (users would see side effects they might not expect).
- * Can we remove the need to specify object stores if we use the ones the transaction is using?  Yes, but we remove the ability to select ranges.  This possibly removes one of the Pros, as the user might be forced to observe object stores they don't want if they are trying to integrate this with a currently running IndexedDB workflow.
+ * This adds one extra line of code.
+ * This is seen as an old style that is out of date.
 
 # Culling
 The changes given to the observer are culled. This eliminated changes that are overwritten in the same transaction or redundant. Here are some examples:
@@ -264,6 +225,9 @@ This returns a js object that includes the options that are supported. By defaul
 
 Any suggestions for better ways to do this is appreciated, I can't find any normal way to do this.
 
+# IDBDatabase.observe(...)
+Since creating an observer inside of a transaction is confusing to some users, and sometimes people don't need to do any reading for their observer, a shortcut method can be made on the database that just creates an empty transaction with the given object stores, and then adds the observer.
+
 # FAQ
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return. Instead we can store range delete metadata to shortcut these operations when it makes sense. Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
@@ -308,3 +272,37 @@ Order of operations
  * o1 gets changes from T2
 
 Even if o1 records the changes from T1 for o2, there is no guarantee that o2 it gets the changes from T1 before another transaction changes o1 again.
+
+# Spec changes
+These are the approximate spec changes that would happen:
+
+## Observer Creation
+When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
+
+## Observer Control
+When `isAlive()` is called on the observer control, it looks in the domain-specific list of observers to find the observer with it's uuid.  If that observer does not exist, then it returns false.
+
+When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list
+
+## Change Recording
+Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` in the following manner:
+
+### Add Operation
+Append the add operation, key and value, on end of operations list.
+
+### Put Operation
+1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
+2. If a put is reached, delete that entry from the list.
+3. If an add is reached, replace the value of the add with the new put value and return.
+4. If a delete is reached, then append the new put at the end of operations and return.
+5. If the end of the list is reached, then append the new put at the end of operations and return.
+
+### Delete Operation
+1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
+2. If a put is reached, delete that entry from the list.
+3. If an add is reached, delete that entry from the list.
+4. If a delete is reached, modify the reached delete to be a union of it's current range and the new delete range.
+5. If we reach the end of the operations list and the new delete was never combined with an older delete, append the delete to the list of operations.
+
+## Observer calling
+When a transaction successfully completes, send the `culled_change_list` changes to all observers that have objects stores touched by the completed transaction. When sending the changes to each observer, all changes to objects stores not observed by the observer are filtered out.
