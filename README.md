@@ -1,3 +1,15 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [indexed-db-observers](#indexed-db-observers)
+- [Polyfill](#polyfill)
+- [Usage](#usage)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+** NOTE: The explainer currently has a more up-to-date version than the spec and examples. Please see that! **
+
 # indexed-db-observers
 Prototyping and discussion around IndexedDB observers.
 
