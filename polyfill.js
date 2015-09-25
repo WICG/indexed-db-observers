@@ -1,5 +1,51 @@
 (function(global) {
+  function generateUUID(){
+      var d = new Date().getTime();
+      var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = (d + Math.random()*16)%16 | 0;
+          d = Math.floor(d/16);
+          return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+      });
+      return uuid;
+  }
+  var earlyAbortListeners = new Set();
+  var listenerMap = new Map();
   var connections = new Map();
+  
+  var generateControlForUUID = function(uuid) {
+    var control = {
+      isAlive: function() {
+        if (!listenerMap.has(uuid)) {
+          return false;
+        }
+        return listenerMap.get(uuid).alive;
+      },
+      stop: function() {
+        if (!listenerMap.has(uuid)) {
+          earlyAbortListeners.add(uuid);
+          return;
+        }
+        var listener = listenerMap.get(uuid);
+        
+        listener.ranges.forEach(function(range, osName) {
+          var list = listener.db._listeners.get(osName);
+          if (!list) {
+            console.error('could not find list for object store ' + osName);
+            return;
+          }
+          var index = list.indexOf(listener);
+          if (index === -1) {
+            console.error('could not find listener in list for object store ' + osName);
+            return;
+          }
+          list.splice(index, 1);
+          listener.db._listeners.set(osName, list);
+        }, this);
+        listener.alive = false;
+      }
+    };
+    return control;
+  }
 
   // to avoid collisions like '__proto__'
 
@@ -162,54 +208,26 @@
   };
 
   // returns control object
-  var addObserver = function(db, objectStoresAndRanges, fcn, options) {
+  var addObserver = function(uuid, db, objectStoreNames, fcn, options) {
     var osToRange = new Map();
     if (options.onlyExternal) {
       console.error('External changes (multiple browsing contexts) are not supported.' +
                     'Observer is effectively a no-op until that is done.  Sorry!');
     }
-    for (var i = 0; i < objectStoresAndRanges.length; i++) {
-      var nameAndRange = objectStoresAndRanges[i];
-      osToRange.set(nameAndRange.name, nameAndRange.range);
+    for (var i = 0; i < objectStoreNames.length; i++) {
+      var name = objectStoreNames[i];
+      osToRange.set(name, options.ranges ? options.ranges[name] : null);
     }
-    var listener = { db: db, fcn: fcn, ranges: osToRange, alive: true, options: options };
+    var listener = { uuid: uuid, db: db, fcn: fcn, ranges: osToRange, alive: true, options: options };
 
-    var osNames = [];
-    for (var i = 0; i < objectStoresAndRanges.length; i++) {
-      var nameAndRange = objectStoresAndRanges[i];
-      osNames.push(nameAndRange.name);
-      var name = nameAndRange.name;
+    for (var i = 0; i < objectStoreNames.length; i++) {
+      var name = objectStoreNames[i];
       if (!db._listeners.has(name)) {
         db._listeners.set(name, []);
       }
       db._listeners.get(name).push(listener);
     }
-    // let the observer load initial state.
-    var txn = db.transaction(osNames, 'readonly');
-    fcn({ initializing: true, db: db, transaction: txn, isExternalChange: false, records: new Map()});
-    var control = {
-      isAlive: function() {
-        return listener.alive;
-      },
-      stop: function() {
-        listener.ranges.forEach(function(range, osName) {
-          var list = db._listeners.get(osName);
-          if (!list) {
-            console.error('could not find list for object store ' + osName);
-            return;
-          }
-          var index = list.indexOf(listener);
-          if (index === -1) {
-            console.error('could not find listener in list for object store ' + osName);
-            return;
-          }
-          list.splice(index, 1);
-          db._listeners.set(osName, list);
-        }, this);
-        listener.alive = false;
-      }
-    };
-    return control;
+    listenerMap.set(uuid, listener);
   };
 
   var hasListeners = function(dbname, osName) {
@@ -248,6 +266,7 @@
   var pushOperation = function(objectStore, changesMap, type, keyOrRange, value) { 
     var name = objectStore.name;
     if (!hasListeners(objectStore.transaction.db.name, name)) {
+      console.log("no listeners found")
       return;
     }
     if (!changesMap.has(name)) {
@@ -333,33 +352,9 @@
     onlyExternal: true
   };
 
-  IDBDatabase.prototype.observe = function(namesOrNamesAndRanges, listenerFunction, options) {
+  IDBTransaction.prototype.observe = function(listenerFunction, options) {
     if (arguments.length == 0) {
       return supportedOptions;
-    }
-    var sanitizedNamesAndRanges = [];
-    if (!Array.isArray(namesOrNamesAndRanges)) {
-      console.error('Object stores must be an array.');
-      return null;
-    }
-    for (var i = 0; i < namesOrNamesAndRanges.length; i++) {
-      var argEntry = namesOrNamesAndRanges[i];
-      if (typeof argEntry === "string") {
-        argEntry = { name: argEntry };
-      }
-      if (!argEntry.name) {
-        console.log('No name provided for namesAndRanges array entry: ', argEntry);
-        continue;
-      }
-      var entry = {
-        name: argEntry.name,
-        range: argEntry.range
-      }
-      sanitizedNamesAndRanges.push(entry);
-    }
-    if (sanitizedNamesAndRanges.length == 0) {
-      console.log('could not parse namesOrNamesAndRanges argument');
-      return null;
     }
     var sanatizedOptions = {
       includeValues: options ? !!options.includeValues : false,
@@ -367,22 +362,48 @@
       excludeRecords: options ? !!options.excludeRecords : false,
       onlyExternal: options ? !!options.onlyExternal : false
     }
-    return addObserver(this, sanitizedNamesAndRanges, listenerFunction, sanatizedOptions);
+    if (options && options.ranges) {
+      if (options.ranges instanceof Map) {
+        sanatizedOptions.ranges = options.ranges;
+      } else {
+        console.error('Ranges option must be a map.');
+        return null;
+      }
+    }
+    var pendingObserver = { uuid: generateUUID(), fcn: listenerFunction, options: sanatizedOptions};
+    this._pendingObservers.push(pendingObserver);
+    console.log(pendingObserver);
+    return generateControlForUUID(pendingObserver.uuid);
   };
 
   var $transaction = IDBDatabase.prototype.transaction;
   IDBDatabase.prototype.transaction = function(scope, mode) {
     var tx = $transaction.apply(this, arguments);
-    if (mode !== 'readwrite') return tx;
-    tx._changes = new Map();
-    tx.db._openTransactions += 1;
+    tx.objectStoreNames = scope;
+    tx._pendingObservers = new Array();
+    if (mode == 'readwrite') {
+      tx._changes = new Map();
+      tx.db._openTransactions += 1;
+    }
     tx.addEventListener('complete', function() {
+      console.log(tx._pendingObservers);
+      if (tx._pendingObservers.length != 0) {
+        console.log("adding observers!")
+        for (var observer of tx._pendingObservers) {
+          if (earlyAbortListeners.has(observer.uuid)) {
+            continue;
+          }
+          addObserver(observer.uuid, this.db, this.objectStoreNames, observer.fcn, observer.options);
+        }
+      }
+      if (tx._changes == undefined) {
+        return;
+      }
       var changeMap = tx._changes;
       tx._changes = [];
       var listeners = getListenersForDb(tx.db.name);
       for (var listener of listeners) {
         var changes = {
-          initializing: false,
           db: listener.db,
           transaction: undefined,
           isExternalChange: false,
@@ -390,6 +411,7 @@
         };
         listener.ranges.forEach(function(range, osName) {
             if (!changeMap.has(osName)) {
+              console.log(osName +" not found in map");
               return;
             }
             var changesRecord = changeMap.get(osName);

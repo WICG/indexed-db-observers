@@ -126,7 +126,6 @@ function sanitizeChanges(changes) {
     return changes;
   }
   return {
-    initializing: changes.initializing,
     transaction: changes.transaction ? '{ ... (populated) ... }' : 'null',
     isExternalChange: changes.isExternalChange,
     db: '{ ... name: ' + changes.db.name + ' ... }',
@@ -155,15 +154,15 @@ function addObserver() {
     log('invalid input: ', objectStores, keyRange);
     return;
   }
+  var options = { includeValues: includeValues, includeTransaction: includeTransaction };
   if (keyRange.length == 2) {
-    objectStores[0] = {
-      name: objectStores[0],
-      range: IDBKeyRange.bound(keyRange[0], keyRange[1], false, false)
-    };
+    options.ranges = new Map();
+    otpions.ranges[objectStores[0]] = IDBKeyRange.bound(keyRange[0], keyRange[1], false, false);
   }
   log('Creating observer ' + observer.id);
   observers.push(observer);
-  var control = db.observe(objectStores, function(changes) {
+  var txn = db.transaction(objectStores, "readonly");
+  var control = txn.observe(function(changes) {
     var sanitized = sanitizeChanges(changes);
     log('Observer ' + observer.id + ' recieved changes: ',
         JSON.stringify(sanitizeChanges(changes)));
@@ -190,12 +189,11 @@ function addObserver() {
         };
         accumulateContents(objectStores[i]);
       }
-      observer.initialized = false;
     } else {
       observer.lastChanges = changes;
       updateObservers();
     }
-  }, { includeValues: includeValues, includeTransaction: includeTransaction });
+  }, options);
 };
 
 function oncomplete() {

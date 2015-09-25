@@ -49,8 +49,8 @@ IndexedDB doesn't have any observer support. This could normally be implemented 
 Use cases for observers include:
  * Updating the UI from database changes (data binding).
  * Syncing local state from background worker (like a ServiceWorker) or another tab making changes.
- * Serializing changes for network communication
- * Simplified application logic
+ * Serializing changes for network communication.
+ * Simplified application logic.
 
 # IDBTransaction.observe(...)
 The function `IDBTransaction.observe(function(changes){...}, options)` will be added.
@@ -149,10 +149,7 @@ For #2, we optionally allow the observer to
  1. Include the values of the changed keys.  Since we know the initial state, with the keys & values of all changes we can maintain a consistent state of the object stores.
  2. Include a readonly transaction of the observing object stores.  This transaction is scheduled right after the transaction that made these changes, so the object store will be consistent with the 'post observe' world.
 
-# Other Versions
-These are other options for the API based on conversations.
-
-## Event Version
+# Event Version
 We can move to an event version of this based on Mozilla's model here:
 https://bugzilla.mozilla.org/show_bug.cgi?id=1059724#c1
 
@@ -235,6 +232,40 @@ Any suggestions for better ways to do this is appreciated, I can't find any norm
 # IDBDatabase.observe(...)
 Since creating an observer inside of a transaction is confusing to some users, and sometimes people don't need to do any reading for their observer, a shortcut method can be made on the database that just creates an empty transaction with the given object stores, and then adds the observer.
 
+# Spec changes
+These are the approximate spec changes that would happen:
+
+## Observer Creation
+When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
+
+## Observer Control
+When `isAlive()` is called on the observer control, it looks in the domain-specific list of observers to find the observer with it's uuid.  If that observer does not exist, then it returns false.
+
+When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list
+
+## Change Recording
+Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` in the following manner:
+
+### Add Operation
+Append the add operation, key and value, on end of operations list.
+
+### Put Operation
+1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
+2. If a put is reached, delete that entry from the list.
+3. If an add is reached, replace the value of the add with the new put value and return.
+4. If a delete is reached, then append the new put at the end of operations and return.
+5. If the end of the list is reached, then append the new put at the end of operations and return.
+
+### Delete Operation
+1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
+2. If a put is reached, delete that entry from the list.
+3. If an add is reached, delete that entry from the list.
+4. If a delete is reached, modify the reached delete to be a union of it's current range and the new delete range.
+5. If we reach the end of the operations list and the new delete was never combined with an older delete, append the delete to the list of operations.
+
+## Observer Calling
+When a transaction successfully completes, send the `culled_change_list` changes to all observers that have objects stores touched by the completed transaction. When sending the changes to each observer, all changes to objects stores not observed by the observer are filtered out.
+
 # FAQ
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return. Instead we can store range delete metadata to shortcut these operations when it makes sense. Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
@@ -243,7 +274,9 @@ IndexedDB was designed to allow range delete optimizations so that `delete [0,10
 Following from the answer above, IndexedDB's API is designed to allow mass deletion optimization, and in order to have the 'deletes instead of clear' functionality, this would involve expensive read operations within the database.  If an observer needed to know exactly what was deleted, they can maintain their own state of the keys that they care about.
 
 ### How do I know I have a true state?
-One might need to guarantee that their observer can see a true, consistent state of the world. This is accomplished by specifying the `includeTransaction` option. This means that every observation callback will receive a readonly transaction for the object store/s that it is observing. It can then use this transaction to see the true state of the world. This transaction will take place immediately after the transaction in which the given changes were performed is completed.
+One might need to guarantee that their observer can see a true, consistent state of the world. This is guarenteed by the way the observer is created within a transaction. When that transaction completes, the observer will be notified for all subsequent transations. Any initial state the observer needs can be read in the initial transaction.
+
+One can also specify the `includeTransaction` option. This means that every observation callback will receive a readonly transaction for the object store/s that it is observing. It can then use this transaction to see the true state of the world. This transaction will take place immediately after the transaction in which the given changes were performed is completed.
 
 ### Why only populate the objectStore name in the `changes` records map?
 Object store objects are only valid when retrieved from transactions. The only relevant information of that object outside of the transaction is the name of the object store. Since the transaction is optional for the observation callback, we aren't guaranteed to be able to create the IDBObjectStore object for the observer.  However, it is easy for the observer to retrieve this object by
@@ -280,36 +313,4 @@ Order of operations
 
 Even if o1 records the changes from T1 for o2, there is no guarantee that o2 it gets the changes from T1 before another transaction changes o1 again.
 
-# Spec changes
-These are the approximate spec changes that would happen:
-
-## Observer Creation
-When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
-
-## Observer Control
-When `isAlive()` is called on the observer control, it looks in the domain-specific list of observers to find the observer with it's uuid.  If that observer does not exist, then it returns false.
-
-When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list
-
-## Change Recording
-Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` in the following manner:
-
-### Add Operation
-Append the add operation, key and value, on end of operations list.
-
-### Put Operation
-1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
-2. If a put is reached, delete that entry from the list.
-3. If an add is reached, replace the value of the add with the new put value and return.
-4. If a delete is reached, then append the new put at the end of operations and return.
-5. If the end of the list is reached, then append the new put at the end of operations and return.
-
-### Delete Operation
-1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
-2. If a put is reached, delete that entry from the list.
-3. If an add is reached, delete that entry from the list.
-4. If a delete is reached, modify the reached delete to be a union of it's current range and the new delete range.
-5. If we reach the end of the operations list and the new delete was never combined with an older delete, append the delete to the list of operations.
-
-## Observer calling
-When a transaction successfully completes, send the `culled_change_list` changes to all observers that have objects stores touched by the completed transaction. When sending the changes to each observer, all changes to objects stores not observed by the observer are filtered out.
+We also believe that keeping the 'one observer call per transaction commit' keeps observers easy to understand.
