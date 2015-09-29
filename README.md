@@ -8,8 +8,6 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-** NOTE: The explainer currently has a more up-to-date version than the spec and examples. Please see that! **
-
 # indexed-db-observers
 Prototyping and discussion around IndexedDB observers.
 
@@ -27,7 +25,7 @@ Caveats:
  * Not very memory efficient.
 
 # Usage
-The function `IDBDatabase.observe(objectStores, function(changes, metadata){...}, options)` will be added.
+The function `IDBTransaction.observe(function(changes){...}, options)` will be added.
 
 You can drop this into your web page right now (with small customization) and it should work:
 ```html
@@ -50,15 +48,14 @@ req.onsuccess = function() {
 
 var control;
 function main() {
-  control = db.observe([objectStoreName], observerFunction);
+  var txn = db.transaction([objectStoreName], 'readonly'];
+  control = txn.observe(observerFunction);
+  txn.oncomplete = function() {
+    console.log('Observing is starting!');
+  }
 }
 
 function observerFunction(changes) {
-  if (changes.initializing) {
-    console.log('Observer is initializing.');
-    // read initial database state from changes.transaction
-    return;
-  }
   console.log('Observer received changes!');
   // An object store that we're observing has changed.
   changes.records.forEach(function(records, objectStoreName) {
@@ -85,27 +82,18 @@ function observerFunction(changes) {
 }
 </script>
 ```
+
 Here we ask for a readonly transaction in our changes:
 ```js
-var control = db.observe([objectStoreName], function(changes) {
-  if (changes.initializing) {
-    console.log('Observer is initializing.');
-    // read initial database state from metadata.transaction
-  } else {
-    var objectStore = changes.transaction.objectStore('store1');
-    // read in values, etc
-  }
+var control = txn.observe(function(changes) {
+  var objectStore = changes.transaction.objectStore('store1');
+  // read in values, etc
 }, { includeTransaction: true });
 ```
 
 Here we ask for the values in our changes:
 ```js
-var control = db.observe([objectStoreName], function(changes) {
-  if (changes.initializing) {
-    console.log('Observer is initializing.');
-    // read initial database state from metadata.transaction
-    return;
-  }
+var control = txn.observe(function(changes) {
   changes.records.get(objectStoreName).forEach(function(change) {
     var type = change.type;
     switch (type) {

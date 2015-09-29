@@ -2,8 +2,6 @@
 Documentation & FAQ of observers
 **Please file an issue if you have any feedback :)**
 
-**NOTE: THIS DOCUMENTATION IS MORE UP TO DATE THAN THE POLYFILL/EXAMPLES**
-
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
@@ -53,7 +51,7 @@ Use cases for observers include:
  * Simplified application logic.
 
 # IDBTransaction.observe(...)
-The function `IDBTransaction.observe(function(changes){...}, options)` will be added.
+The function `IDBTransaction.observe(function(changes){...}, options)` is added.
 
 This function causes an observer to be created for the object stores that the given transaction is operating on. The returned object is a 'control' object which can be used to stop the observer. The given function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or 'stop' is called on the control object.
 
@@ -63,18 +61,20 @@ options: {
   includeValues: false,      // includes the 'value' of each change in the change array
   includeTransaction: false, // includes a readonly transaction in the observer callback
   excludeRecords: false,     // records are excluded (null)
-  onlyExternal:   false      // only listen for changes from other browsing contexts
+  onlyExternal:   false,     // only listen for changes from other browsing contexts
+  ranges:         null       // An optional map of object store name to IDBKeyRange objects.
 }
 ```
 
 By default, the observer is only given the keys of changed items and no transaction.
  * If `includeValues` is specified, then values for all `put` and `add` will be included. However, these values can be large depending on your use of the IndexedDB.
  * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
+ * If `ranges` is populated, then each object store that the observer is observing will only observe the key range that is stored in this `ranges` map. 
 
 #### Observer Function
-The observer function will begin being called when the transaction it is created from is completed. This allows the creator to read the 'true' state of the world before the observer starts. In other words, this allows the developer to control exactly when the observing begins.
+The objserver function will be called whenever a transaction is successfully completed on the applicable object store/s. The changes given to the function will be the 'culled' changes of each transaction (see [Culling](#culling) below). There is one observer callback per applicable transaction.
 
-The passed function will be called whenever a transaction is successfully completed on the given object store/s. The changes given to the function will be the 'culled' changes of each transaction. There is one observer callback per applicable transaction.
+The observer functionality starts after the the transaction the observer was created in is completed. This allows the creator to read the 'true' state of the world before the observer starts. In other words, this allows the developer to control exactly when the observing begins.
 
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
 
@@ -128,11 +128,6 @@ In cases like corruption, the database connection is automatically closed, and t
 // ... assume 'db' is the database connection
 var txn = db.transaction(['objectStore'], 'readonly');
 var control = txn.observe(function(changes) {
-  if (changes.initializing) {
-    console.log('Observer is initializing.');
-    // read initial database state from changes.transaction
-    return;
-  }
   var records = changes.records.get('objectStore');
   console.log('Observer got change records: ', records);
 });
@@ -233,7 +228,11 @@ Any suggestions for better ways to do this is appreciated, I can't find any norm
 Since creating an observer inside of a transaction is confusing to some users, and sometimes people don't need to do any reading for their observer, a shortcut method can be made on the database that just creates an empty transaction with the given object stores, and then adds the observer.
 
 # Spec changes
-These are the approximate spec changes that would happen:
+These are the approximate spec changes that would happen.
+
+The following extra 'hidden variables' will be kept track of in the spec inside of IDBTransaction:
+ * pending_observer_construction - a list of {uuid string, options map, callback function} tuples.
+ * culled_change_list - a list of { operation string, optional key IDBKeyRange, optional value object}
 
 ## Observer Creation
 When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
