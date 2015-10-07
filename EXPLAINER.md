@@ -22,7 +22,17 @@ Documentation & FAQ of observers
 - [Open Issues](#open-issues)
 - [Feature Detection](#feature-detection)
 - [IDBDatabase.observe(...)](#idbdatabaseobserve)
+- [Spec changes](#spec-changes)
+  - [Observer Creation](#observer-creation)
+  - [Observer Control](#observer-control)
+  - [Change Recording](#change-recording)
+    - [Add Operation](#add-operation)
+    - [Put Operation](#put-operation)
+    - [Delete Operation](#delete-operation)
+    - [Clear Operation](#clear-operation)
+  - [Observer calling](#observer-calling)
 - [FAQ](#faq)
+    - [Observing onUpgrade](#observing-onupgrade)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
     - [Why not issue 'deletes' instead a 'clear'?](#why-not-issue-deletes-instead-a-clear)
     - [How do I know I have a true state?](#how-do-i-know-i-have-a-true-state)
@@ -31,14 +41,6 @@ Documentation & FAQ of observers
     - [Why not more like Object.observe?](#why-not-more-like-objectobserve)
     - [What realm are the change objects coming from?](#what-realm-are-the-change-objects-coming-from)
     - [Why not observe from ObjectStore object?](#why-not-observe-from-objectstore-object)
-- [Spec changes](#spec-changes)
-  - [Observer Creation](#observer-creation)
-  - [Observer Control](#observer-control)
-  - [Change Recording](#change-recording)
-    - [Add Operation](#add-operation)
-    - [Put Operation](#put-operation)
-    - [Delete Operation](#delete-operation)
-  - [Observer calling](#observer-calling)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 # Why?
@@ -232,7 +234,7 @@ These are the approximate spec changes that would happen.
 
 The following extra 'hidden variables' will be kept track of in the spec inside of IDBTransaction:
  * pending_observer_construction - a list of {uuid string, options map, callback function} tuples.
- * culled_change_list - a list of { operation string, optional key IDBKeyRange, optional value object}
+ * culled_change_list - a per-object-store list of { operation string, optional key IDBKeyRange, optional value object}.  The could be done as a map of object store name to the given list.
 
 ## Observer Creation
 When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
@@ -243,7 +245,7 @@ When `isAlive()` is called on the observer control, it looks in the domain-speci
 When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list
 
 ## Change Recording
-Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` in the following manner:
+Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` for the given object store in the following manner:
 
 ### Add Operation
 Append the add operation, key and value, on end of operations list.
@@ -262,10 +264,17 @@ Append the add operation, key and value, on end of operations list.
 4. If a delete is reached, modify the reached delete to be a union of it's current range and the new delete range.
 5. If we reach the end of the operations list and the new delete was never combined with an older delete, append the delete to the list of operations.
 
+### Clear Operation
+1. Clear the `culled_change_list` for that object store.
+2. Add a 'clear' operation to list.
+
 ## Observer Calling
 When a transaction successfully completes, send the `culled_change_list` changes to all observers that have objects stores touched by the completed transaction. When sending the changes to each observer, all changes to objects stores not observed by the observer are filtered out.
 
 # FAQ
+### Observing onUpgrade
+This spec does not offer a way to observe during onupgrade. Potential clients voiced they wouldn't need this feature. This doesn't seem like it's needed either, as one can just read in any data they need with the transaction used to do the upgrading.  Then the observer is guarenteed to begin at the end of that transaction (if one is added), and it wouldn't miss any chanage.
+
 ### Why not expose 'old' values?
 IndexedDB was designed to allow range delete optimizations so that `delete [0,10000]` doesn't actually have to physically remove those items to return. Instead we can store range delete metadata to shortcut these operations when it makes sense. Since we have many assumptions for this baked our abstraction layer, getting an 'original' or 'old' value would be nontrivial and incur more overhead.
 
