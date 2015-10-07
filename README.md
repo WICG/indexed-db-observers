@@ -11,7 +11,7 @@
 # indexed-db-observers
 Prototyping and discussion around IndexedDB observers.
 
- * [Explainer & FAQ](EXPLAINER.md)
+ * [Explainer & FAQ](EXPLAINER.md) **<-- read this for details & spec changes**
  * [Examples](https://dmurph.github.io/indexed-db-observers/)
 
 # Polyfill
