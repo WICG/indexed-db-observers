@@ -60,10 +60,10 @@ This function causes an observer to be created for the object stores that the gi
 #### `options` Argument
 ```js
 options: {
-  includeValues: false,      // includes the 'value' of each change in the change array
-  includeTransaction: false, // includes a readonly transaction in the observer callback
-  excludeRecords: false,     // records are excluded (null)
-  onlyExternal:   false,     // only listen for changes from other browsing contexts
+  includeValues: false,      // Includes the 'value' of each change in the change array.
+  includeTransaction: false, // Includes a readonly transaction in the observer callback.
+  excludeRecords: false,     // Records are excluded from the changes object (null).
+  onlyExternal:   false,     // Only listen for changes from other database connections.
   ranges:         null       // An optional map of object store name to IDBKeyRange objects.
 }
 ```
@@ -71,6 +71,8 @@ options: {
 By default, the observer is only given the keys of changed items and no transaction.
  * If `includeValues` is specified, then values for all `put` and `add` will be included. However, these values can be large depending on your use of the IndexedDB.
  * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
+ * If `excludeRecords` is specified, then the observer will be called for all changes, but no records will be included in the changes object. This is the most lightweight option having an observer.
+ * If `onlyExternal` is specified, then only changes from other database connections will be observed. This can be another connection on the same page, or a connection from a different browsing context (background worker, tab, etc).
  * If `ranges` is populated, then each object store that the observer is observing will only observe the key range that is stored in this `ranges` map. 
 
 #### Observer Function
@@ -85,8 +87,7 @@ The **`changes`** argument includes the following:
 ```js
 changes: {
   db: <object>, // The database connection object. If null, then the change
-                // was external.
-  isExternal: <boolean>, // If the changes were from a different browsing context
+                // was from a different database connection.
   transaction: <object>, // A readonly transaction over the object stores that
                          // this observer is listening to. This is populated when
                          // an observer is called for initialization, or always
@@ -102,16 +103,18 @@ The `key` of the map is the object store name, and the `value` element of the ma
  * `type`: `add`, `put`, `delete`, or `clear`
  * optional `key`: The key or IDBKeyRange for the operation (the `clear` type does not populate a key)
  * optional `value`: The value inserted into the database by `add` or `put`. Included if the `includeValues` option is specified.
-Example **records** map:
+Example **records** Map object:
 ```js
-{'objectStore1' => [{"type":"add","key":1,"value":"val1"},
-                    {"type":"add","key":2,"value":"val2"},
-                    {"type":"put","key":4,"value":"val4"},
-                    {"type":"delete","key":{"upperOpen":false,"lowerOpen":false,"upper":5,"lower":5}}],
- 'objectStore2' => [{"type":"add","key":1,"value":"val1"},
-                    {"type":"add","key":2,"value":"val2"}]}
+{'objectStore1' => [{type: "add", key: IDBKeyRange.only(1), value: "val1"},
+                    {type: "add", key: IDBKeyRange.only(2), value: "val2"},
+                    {type: "put", key: IDBKeyRange.only(4), value: "val4"},
+                    {type: "delete", key: IDBKeyRange.bound(5, 6, false, false)}],
+ 'objectStore2' => [{type: "add", key: IDBKeyRange.only(1), value: "val1"},
+                    {type: "add", key: IDBKeyRange.only(2), value: "val2"}]}
 ```
 These changes are culled. See the [Culling](#culling) section below.
+
+Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.
 
 #### Return Value & Lifetime
 The return value of the `IDBDatabase.observe` function is the control object, which has the following functions:
@@ -246,6 +249,8 @@ When `stop()` is called on the control, the observer with the control's uuid is 
 
 ## Change Recording
 Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` for the given object store in the following manner:
+
+(Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.)
 
 ### Add Operation
 Append the add operation, key and value, on end of operations list.
