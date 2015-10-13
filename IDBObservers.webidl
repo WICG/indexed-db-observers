@@ -2,7 +2,13 @@ partial interface IDBTransaction {
     [RaisesException, NewObject] IDBObserverControl observe(IDBObserverCallback callback, optional IDBObserverOptions options);
 };
 
+// This control:
+// * Holds a reference to the database connection.
+// * Allows the user to stop this oberver from observing.
+// * Check if the observer is currently observing.
 interface IDBObserverControl {
+    [ReadOnly] IDBDatabase db;
+    
     void stop();
     boolean isAlive();
 };
@@ -10,22 +16,28 @@ interface IDBObserverControl {
 callback IDBObserverCallback = void (IDBObserverChanges);
 
 dictionary IDBObserverOptions {
-    boolean includeValues;
-    boolean includeTransaction;
-    boolean excludeRecords;
-    boolean onlyExternal;
-    any ranges; // optional javascript map of string object store name to IDBKeyRange
+    // Optionally include a readonly transaction in the observer callback.
+    boolean transaction;
+    // Optionally only listen for changes from other db connections.
+    boolean external;
+    // Optional JSON object of String (object store name) -> IDBObserverDataStoreOptions.
+    any storesOptions;
+};
+
+dictionary IDBObserverDataStoreOptions {
+    // Optionally include values in the change records for this data store.
+    boolean values;
+    // Optionally remove records from the observer callback.
+    boolean noRecords;
+    // Optionally specify the ranges to listen to in this object store.
+    sequence<IDBKeyRange> ranges;
 };
 
 dictionary IDBObserverChanges {
     IDBDatabase db;
     IDBTransaction transaction;
-    // This is the javascript Map object with key type of String and value type of sequence<IDBObserverChangeRecord>
+    // This is the javascript Map<String, sequence<IDBObserverChangeRecord>>
     any records;
-};
-
-enum IDBObserverChangeRecordType {
-    "add", "put", "delete", "clear"
 };
 
 dictionary IDBObserverChangeRecord {
@@ -33,4 +45,8 @@ dictionary IDBObserverChangeRecord {
     // When the record is a "delete" type, this is an IDBKeyRange
     any key;
     any value;
+};
+
+enum IDBObserverChangeRecordType {
+    "add", "put", "delete", "clear"
 };
