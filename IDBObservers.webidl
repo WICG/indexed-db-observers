@@ -26,7 +26,7 @@ dictionary IDBObserverOptions {
 
 dictionary IDBObserverDataStoreOptions {
     // Optionally include values in the change records for this data store.
-    boolean values;
+    boolean value;
     // Optionally remove records from the observer callback.
     boolean noRecords;
     // Optionally specify the ranges to listen to in this object store.
@@ -36,13 +36,14 @@ dictionary IDBObserverDataStoreOptions {
 dictionary IDBObserverChanges {
     IDBDatabase db;
     IDBTransaction transaction;
-    // This is the javascript Map<String, sequence<IDBObserverChangeRecord>>
+    // This is the javascript Map<String, sequence<IDBObserverChangeRecord>>,
+    // where the key is the object store name.
     any records;
 };
 
 dictionary IDBObserverChangeRecord {
     IDBObserverChangeRecordType type;
-    // When the record is a "delete" type, this is an IDBKeyRange
+    // When the record is a "delete" type, this is an IDBKeyRange.
     any key;
     any value;
 };
