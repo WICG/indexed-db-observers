@@ -19,7 +19,7 @@ dictionary IDBObserverOptions {
     // Optionally include a readonly transaction in the observer callback.
     boolean transaction;
     // Optionally only listen for changes from other db connections.
-    boolean external;
+    boolean onlyExternal;
     // Optional JSON object of String (object store name) -> IDBObserverDataStoreOptions.
     any storesOptions;
 };

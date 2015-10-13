@@ -14,23 +14,24 @@ Documentation & FAQ of observers
           - [`records`](#records)
       - [Return Value & Lifetime](#return-value-&-lifetime)
       - [Example Usage](#example-usage)
+- [IDBDatabase.observe(...)](#idbdatabaseobserve)
 - [Observation Consistency & Guarantees](#observation-consistency-&-guarantees)
-- [Other Versions](#other-versions)
-  - [Event Version](#event-version)
-- [Culling](#culling)
+- [Event Version](#event-version)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
 - [Feature Detection](#feature-detection)
-- [IDBDatabase.observe(...)](#idbdatabaseobserve)
 - [Spec changes](#spec-changes)
   - [Observer Creation](#observer-creation)
   - [Observer Control](#observer-control)
   - [Change Recording](#change-recording)
-    - [Add Operation](#add-operation)
-    - [Put Operation](#put-operation)
-    - [Delete Operation](#delete-operation)
-    - [Clear Operation](#clear-operation)
-  - [Observer calling](#observer-calling)
+  - [Observer Calling](#observer-calling)
+- [Future Features](#future-features)
+  - [Culling](#culling)
+    - [Culling Spec Changes](#culling-spec-changes)
+      - [Add Operation](#add-operation)
+      - [Put Operation](#put-operation)
+      - [Delete Operation](#delete-operation)
+      - [Clear Operation](#clear-operation)
 - [FAQ](#faq)
     - [Observing onUpgrade](#observing-onupgrade)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
@@ -59,24 +60,38 @@ This function causes an observer to be created for the object stores that the gi
 
 #### `options` Argument
 ```js
+// Example default options object:
 options: {
-  includeValues: false,      // Includes the 'value' of each change in the change array.
-  includeTransaction: false, // Includes a readonly transaction in the observer callback.
-  excludeRecords: false,     // Records are excluded from the changes object (null).
-  onlyExternal:   false,     // Only listen for changes from other database connections.
-  ranges:         null       // An optional map of object store name to IDBKeyRange objects.
+  transaction:  false,  // Includes a readonly transaction in the observer callback.
+  onlyExternal: false,  // Only listen for changes from other database connections.
+  storeObjects: null    // An optional map of object store name to IDBObserverDataStoreOptions objects.
+}
+
+// Example default 'IDBObserverDataStoreOptions' object:
+storeOptions: {
+  'objectStoreName1': {
+    value: false,      // Includes the 'value' of each change in the change array.
+    noRecords: false,  // Exclude the records for this object store.
+    ranges: null       // Specifies ranges to listen to in the object store.
+  },
+  'objectStoreName2': {
+    // etc
+  }
 }
 ```
 
-By default, the observer is only given the keys of changed items and no transaction.
- * If `includeValues` is specified, then values for all `put` and `add` will be included. However, these values can be large depending on your use of the IndexedDB.
- * If `includeTransaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
- * If `excludeRecords` is specified, then the observer will be called for all changes, but no records will be included in the changes object. This is the most lightweight option having an observer.
+By default, the observer is given the keys of changed items in all object stores it's listening to, and no transaction is created for the observe callback.
+
+More explanation of each option:
+
+ * If `transaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
  * If `onlyExternal` is specified, then only changes from other database connections will be observed. This can be another connection on the same page, or a connection from a different browsing context (background worker, tab, etc).
- * If `ranges` is populated, then each object store that the observer is observing will only observe the key range that is stored in this `ranges` map. 
+ * If `value` is specified, then values for all `put` and `add` will be included for the resptive object stores. However, these values can be large depending on your use of the IndexedDB.
+ * If `noRecords` is specified, then the observer will be called for all changes, but no records will be included in the changes object for that object store. This is the most lightweight option having an observer.
+ * If `ranges` is populated (as an sequence<IDBKeyRange>), then the observer will only observe changes for the respective object store in the key ranges specified in this sequence.
 
 #### Observer Function
-The objserver function will be called whenever a transaction is successfully completed on the applicable object store/s. The changes given to the function will be the 'culled' changes of each transaction (see [Culling](#culling) below). There is one observer callback per applicable transaction.
+The observer function will be called whenever a transaction is successfully completed on the applicable object store/s. There is one observer callback per applicable transaction.
 
 The observer functionality starts after the the transaction the observer was created in is completed. This allows the creator to read the 'true' state of the world before the observer starts. In other words, this allows the developer to control exactly when the observing begins.
 
@@ -112,14 +127,14 @@ Example **records** Map object:
  'objectStore2' => [{type: "add", key: IDBKeyRange.only(1), value: "val1"},
                     {type: "add", key: IDBKeyRange.only(2), value: "val2"}]}
 ```
-These changes are culled. See the [Culling](#culling) section below.
 
 Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.
 
 #### Return Value & Lifetime
-The return value of the `IDBDatabase.observe` function is the control object, which has the following functions:
+The return value of the `IDBDatabase.observe` function is the control object, which has the following schema:
 ```js
 control: {
+  db: <IDBDatabase object>
   stop: function(){...},   // This stops the observer permanently.
   isAlive: function(){...}, // This returns if the observer is alive
 }
@@ -136,6 +151,12 @@ var control = txn.observe(function(changes) {
   var records = changes.records.get('objectStore');
   console.log('Observer got change records: ', records);
 });
+```
+
+# IDBDatabase.observe(...)
+Since creating an observer inside of a transaction is confusing to some users, and sometimes people don't need to do any reading for their observer, a shortcut method can be made on the database that just creates an empty transaction with the given object stores, and then adds the observer.
+```js
+var ctrl = IDBDatabase.observer(['objectstore1'], function(changes) {...}, options)
 ```
 
 # Observation Consistency & Guarantees
@@ -176,9 +197,66 @@ Pros:
 Cons:
  * This adds one extra line of code.
  * This is seen as an old style that is out of date.
+ * Multiple listeners could cause confusing and bugs.
 
-# Culling
-The changes given to the observer are culled. This eliminated changes that are overwritten in the same transaction or redundant. Here are some examples:
+# Examples
+See the html files for examples, hosted here:
+https://dmurph.github.io/indexed-db-observers/
+
+# Open Issues
+Issues section here: https://github.com/dmurph/indexed-db-observers/issues
+
+# Feature Detection
+For future feature detection, I've included the following special case for calling `IDBTransaction.observe()` (or `IDBDatabase.observer()`) with no arguments:
+
+```js
+var features = txn.observe(); // no arg call
+if (!features.transaction || !features.values) {
+  // etc
+}
+```
+
+This returns a js object that includes the options that are supported. By default this is:
+```js
+{
+  transaction: true,
+  onlyExternal: true,
+  values: true,
+  noRecords: true,
+  ranges: true
+  // culling: true,
+  // otherNewFeature: true
+};
+```
+
+Any suggestions for better ways to do this is appreciated, I can't find any normal way to do this.
+
+# Spec changes
+These are the approximate spec changes that would happen.
+
+The following extra 'hidden variables' will be kept track of in the spec inside of IDBTransaction:
+ * `pending_observer_construction` - a list of {uuid string, options map, callback function} tuples.
+ * `change_list` - a per-object-store list of { operation string, optional key IDBKeyRange, optional value object}.  The could be done as a map of object store name to the given list.
+
+## Observer Creation
+When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
+
+## Observer Control
+When `isAlive()` is called on the observer control, it looks in the domain-specific list of observers to find the observer with it's uuid.  If that observer does not exist, then it returns false.
+
+When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list
+
+## Change Recording
+Every change would record an entry in the `change_list` for the given object store.
+
+## Observer Calling
+When a transaction successfully completes, send the `change_list` changes to all observers that have objects stores touched by the completed transaction. When sending the changes to each observer, all changes to objects stores not observed by the observer are filtered out.
+
+
+# Future Features
+
+## Culling
+The changes given to the observer could be culled. This eliminated changes that are overwritten in the same transaction or redundant. Here are some examples:
  1. add 'a', 1
  2. add 'b', 2
  3. put 'putA', 1
@@ -200,81 +278,33 @@ This is culled to:
 
 Note that these operations are still ordered. They are not a disjoint set.
 
-# Examples
-See the html files for examples, hosted here:
-https://dmurph.github.io/indexed-db-observers/
+This would be an boolean option in the IDBObserverDataStoreOptions object, `culling`.
 
-# Open Issues
-Issues section here: https://github.com/dmurph/indexed-db-observers/issues
-
-# Feature Detection
-For future feature detection, I've included the following special case for calling `IDBDatabase.observe()` with no arguments:
-
-```js
-var features = db.observe(); // no arg call
-if (!features.includeTransaction || !features.includeValues) {
-  // etc
-}
-```
-
-This returns a js object that includes the options that are supported. By default this is:
-```js
-{
-  includeValues: true,
-  includeTransaction: true,
-  excludeRecords: true,
-  onlyExternal: true
-};
-```
-
-Any suggestions for better ways to do this is appreciated, I can't find any normal way to do this.
-
-# IDBDatabase.observe(...)
-Since creating an observer inside of a transaction is confusing to some users, and sometimes people don't need to do any reading for their observer, a shortcut method can be made on the database that just creates an empty transaction with the given object stores, and then adds the observer.
-
-# Spec changes
-These are the approximate spec changes that would happen.
-
-The following extra 'hidden variables' will be kept track of in the spec inside of IDBTransaction:
- * pending_observer_construction - a list of {uuid string, options map, callback function} tuples.
- * culled_change_list - a per-object-store list of { operation string, optional key IDBKeyRange, optional value object}.  The could be done as a map of object store name to the given list.
-
-## Observer Creation
-When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
-
-## Observer Control
-When `isAlive()` is called on the observer control, it looks in the domain-specific list of observers to find the observer with it's uuid.  If that observer does not exist, then it returns false.
-
-When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list
-
-## Change Recording
+### Culling Spec Changes
 Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` for the given object store in the following manner:
 
 (Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.)
 
-### Add Operation
+#### Add Operation
 Append the add operation, key and value, on end of operations list.
 
-### Put Operation
+#### Put Operation
 1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
 2. If a put is reached, delete that entry from the list.
 3. If an add is reached, replace the value of the add with the new put value and return.
 4. If a delete is reached, then append the new put at the end of operations and return.
 5. If the end of the list is reached, then append the new put at the end of operations and return.
 
-### Delete Operation
+#### Delete Operation
 1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
 2. If a put is reached, delete that entry from the list.
 3. If an add is reached, delete that entry from the list.
 4. If a delete is reached, modify the reached delete to be a union of it's current range and the new delete range.
 5. If we reach the end of the operations list and the new delete was never combined with an older delete, append the delete to the list of operations.
 
-### Clear Operation
+#### Clear Operation
 1. Clear the `culled_change_list` for that object store.
 2. Add a 'clear' operation to list.
-
-## Observer Calling
-When a transaction successfully completes, send the `culled_change_list` changes to all observers that have objects stores touched by the completed transaction. When sending the changes to each observer, all changes to objects stores not observed by the observer are filtered out.
 
 # FAQ
 ### Observing onUpgrade
