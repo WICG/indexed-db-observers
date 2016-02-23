@@ -64,7 +64,7 @@ This function causes an observer to be created for the object stores that the gi
 options: {
   transaction:  false,  // Includes a readonly transaction in the observer callback.
   onlyExternal: false,  // Only listen for changes from other database connections.
-  storeObjects: null    // An optional map of object store name to IDBObserverDataStoreOptions objects.
+  storeOptions: null    // An optional map of object store name to IDBObserverDataStoreOptions objects.
 }
 
 // Example default 'IDBObserverDataStoreOptions' object:
