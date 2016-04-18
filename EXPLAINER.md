@@ -55,7 +55,7 @@ Use cases for observers include:
 # IDBTransaction.observe(...)
 The function `IDBTransaction.observe(function(changes){...}, options)` is added.
 
-This function causes an observer to be created for the object stores that the given transaction is operating on. The returned object is a 'control' object which can be used to stop the observer. The given function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or 'stop' is called on the control object.
+This function causes an observer to be created for the object stores that the given transaction is operating on, or the object stores returned by `IDBTransaction.objectStoreNames`. The returned object is a 'control' object which can be used to stop the observer. The given function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or 'stop' is called on the control object.
 
 #### `options` Argument
 ```js
@@ -79,7 +79,7 @@ storeOptions: {
 }
 ```
 
-By default, the observer is given the keys of changed items in all object stores it's listening to, and no transaction is created for the observe callback.
+By default, the observer is given the keys of changed items in all object stores it's listening to, and no transaction is created for the observe callback. The observer __always observes the object stores that the transaction was created with__ (object stores returned by `IDBTransaction.objectStoreNames`).
 
 More explanation of each option:
 
