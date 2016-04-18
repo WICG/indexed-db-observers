@@ -16,7 +16,6 @@ Documentation & FAQ of observers
       - [Example Usage](#example-usage)
 - [IDBDatabase.observe(...)](#idbdatabaseobserve)
 - [Observation Consistency & Guarantees](#observation-consistency-&-guarantees)
-- [Event Version](#event-version)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
 - [Feature Detection](#feature-detection)
