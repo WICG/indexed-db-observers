@@ -15,7 +15,6 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
           - [`records`](#records)
       - [Return Value & Lifetime](#return-value--lifetime)
       - [Example Usage](#example-usage)
-- [IDBDatabase.observe(...)](#idbdatabaseobserve)
 - [Observation Consistency & Guarantees](#observation-consistency--guarantees)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
@@ -153,12 +152,6 @@ var control = txn.observe(function(changes) {
   var records = changes.records.get('objectStore');
   console.log('Observer got change records: ', records);
 });
-```
-
-# IDBDatabase.observe(...)
-Since creating an observer inside of a transaction is confusing to some users, and sometimes people don't need to do any reading for their observer, a shortcut method can be made on the database that just creates an empty transaction with the given object stores, and then adds the observer.
-```js
-var ctrl = IDBDatabase.observer(['objectstore1'], function(changes) {...}, options)
 ```
 
 # Observation Consistency & Guarantees
