@@ -131,7 +131,7 @@ Example **records** Map object:
 Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.
 
 #### Return Value & Lifetime
-The return value of the `IDBDatabase.observe` function is the [IDBObserverControl](IDBObservers.webidl) object, which has the following schema:
+The return value of the `IDBTransaction.observe` function is the [IDBObserverControl](IDBObservers.webidl) object, which has the following schema:
 ```js
 control: {
   db: <IDBDatabase object>
