@@ -21,6 +21,7 @@ callback IDBObserverCallback = void (IDBObserverChanges);
 
 dictionary IDBObserverOptions {
     // Optionally include a readonly transaction in the observer callback.
+    // The transaction is over all the object stores that the observer is observing.
     boolean transaction;
     // Optionally only listen for changes from other db connections.
     boolean onlyExternal;
