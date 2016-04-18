@@ -64,17 +64,17 @@ This function causes an observer to be created for the object stores that the gi
 options: {
   transaction:  false,  // Includes a readonly transaction in the observer callback.
   onlyExternal: false,  // Only listen for changes from other database connections.
-  storeOptions: null    // An optional map of object store name to IDBObserverDataStoreOptions objects.
+  storeOptions: null    // An optional Map<String, IDBObserverDataStoreOptions>.
 }
 
-// Example default 'IDBObserverDataStoreOptions' object:
+// Example default 'storeOptions' map:
 storeOptions: {
-  'objectStoreName1': {
+  'objectStoreName1': => {
     value: false,      // Includes the 'value' of each change in the change array.
     noRecords: false,  // Exclude the records for this object store.
     ranges: null       // Specifies ranges to listen to in the object store.
   },
-  'objectStoreName2': {
+  'objectStoreName2' => {
     // etc
   }
 }
@@ -105,8 +105,7 @@ changes: {
                 // was from a different database connection.
   transaction: <object>, // A readonly transaction over the object stores that
                          // this observer is listening to. This is populated when
-                         // an observer is called for initialization, or always
-                         // when includeTransaction is set in the options.
+                         // includeTransaction is set in the options.
   records: Map<string, Array<object>> // The changes, outlined below.
 }
 ```
@@ -135,6 +134,7 @@ The return value of the `IDBDatabase.observe` function is the control object, wh
 ```js
 control: {
   db: <IDBDatabase object>
+  options: <IDBObserverOptions object> // parsed and validated from observe(...) call. Used for feature detection/validation.
   stop: function(){...},   // This stops the observer permanently.
   isAlive: function(){...}, // This returns if the observer is alive
 }
@@ -170,35 +170,6 @@ For #2, we optionally allow the observer to
  1. Include the values of the changed keys.  Since we know the initial state, with the keys & values of all changes we can maintain a consistent state of the object stores.
  2. Include a readonly transaction of the observing object stores.  This transaction is scheduled right after the transaction that made these changes, so the object store will be consistent with the 'post observe' world.
 
-# Event Version
-We can move to an event version of this based on Mozilla's model here:
-https://bugzilla.mozilla.org/show_bug.cgi?id=1059724#c1
-
-This would result in the following version of the example code, where the 'changes' argument has changed to an event:
-```js
-// ... assume 'db' is the database connection
-var observer = db.observe(['objectStore']);
-observer.onchange = function(event) {
-  if (event.initializing) {
-    console.log('Observer is initializing.');
-    // read initial database state from changes.transaction
-    return;
-  }
-  var records = changes.records.get('objectStore');
-  console.log('Observer got change records: ', records);
-};
-```
-
-The `stop()` and `isAlive()` functions would still live on this observer object.
-
-Pros:
- * The event pattern is more common to the web platform.
-
-Cons:
- * This adds one extra line of code.
- * This is seen as an old style that is out of date.
- * Multiple listeners could cause confusing and bugs.
-
 # Examples
 See the html files for examples, hosted here:
 https://dmurph.github.io/indexed-db-observers/
@@ -207,29 +178,7 @@ https://dmurph.github.io/indexed-db-observers/
 Issues section here: https://github.com/dmurph/indexed-db-observers/issues
 
 # Feature Detection
-For future feature detection, I've included the following special case for calling `IDBTransaction.observe()` (or `IDBDatabase.observer()`) with no arguments:
-
-```js
-var features = txn.observe(); // no arg call
-if (!features.transaction || !features.values) {
-  // etc
-}
-```
-
-This returns a js object that includes the options that are supported. By default this is:
-```js
-{
-  transaction: true,
-  onlyExternal: true,
-  values: true,
-  noRecords: true,
-  ranges: true
-  // culling: true,
-  // otherNewFeature: true
-};
-```
-
-Any suggestions for better ways to do this is appreciated, I can't find any normal way to do this.
+For future feature detection, the developer can use the 'IDBObserverControl.options' object to check if the options they specified in `observe(...)` are supported.
 
 # Spec changes
 These are the approximate spec changes that would happen.
@@ -244,7 +193,7 @@ When the observe method is called on a transaction, the given options, callback,
 ## Observer Control
 When `isAlive()` is called on the observer control, it looks in the domain-specific list of observers to find the observer with it's uuid.  If that observer does not exist, then it returns false.
 
-When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list
+When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list.
 
 ## Change Recording
 Every change would record an entry in the `change_list` for the given object store.
@@ -336,6 +285,7 @@ The two main reasons are:
  2. We need to include changes from multiple object stores for a single callback.
  3. We can't include the 'old' values.
  4. Operation type conflicts:  'put' vs 'update'
+ 5. That's being deprecated & removed.
 
 ### What realm are the change objects coming from?
 All changes (the keys and values) are structured cloneable, and are cloned from IDB. So they are not coming from a different realm.
