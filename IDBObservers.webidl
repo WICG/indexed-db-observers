@@ -1,4 +1,5 @@
 partial interface IDBTransaction {
+    // Starts observing on the object stores in this transaction (IDBTransaction.objectStoreNames).
     [RaisesException, NewObject] IDBObserverControl observe(IDBObserverCallback callback, optional IDBObserverOptions options);
 };
 
@@ -8,7 +9,10 @@ partial interface IDBTransaction {
 // * Check if the observer is currently observing.
 interface IDBObserverControl {
     [ReadOnly] IDBDatabase db;
-    
+    // This allows the developer to check which options they specified are supported.
+    // This is a parsed and validated version of the options given to |observe(...)|.
+    [ReadOnly] IDBObserverOptions options;
+
     void stop();
     boolean isAlive();
 };
@@ -20,7 +24,7 @@ dictionary IDBObserverOptions {
     boolean transaction;
     // Optionally only listen for changes from other db connections.
     boolean onlyExternal;
-    // Optional JSON object of String (object store name) -> IDBObserverDataStoreOptions.
+    // Optional javascript Map<String, IDBObserverDataStoreOptions>.
     any storesOptions;
 };
 
