@@ -20,6 +20,10 @@ The polyfill is located here:
 <script src="//dmurph.github.io/indexed-db-observers/polyfill.js"></script>
 ```
 
+**It is currently out of date, as the spec has been changing a bit. I'll update it when the spec has settled.**
+
+**PLEASE SEE EXPLAINER.MD FOR UP-TO-DATE INFORMATION**
+
 Caveats:
  * It doesn't broadcast changes across browsing contexts.
  * Not very memory efficient.
