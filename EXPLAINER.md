@@ -1,5 +1,6 @@
 # Explainer
-Documentation & FAQ of observers
+Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.webidl](/IDBObservers.webidl)
+
 **Please file an issue if you have any feedback :)**
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -12,10 +13,10 @@ Documentation & FAQ of observers
       - [Observer Function](#observer-function)
           - [`changes` Argument](#changes-argument)
           - [`records`](#records)
-      - [Return Value & Lifetime](#return-value-&-lifetime)
+      - [Return Value & Lifetime](#return-value--lifetime)
       - [Example Usage](#example-usage)
 - [IDBDatabase.observe(...)](#idbdatabaseobserve)
-- [Observation Consistency & Guarantees](#observation-consistency-&-guarantees)
+- [Observation Consistency & Guarantees](#observation-consistency--guarantees)
 - [Examples](#examples)
 - [Open Issues](#open-issues)
 - [Feature Detection](#feature-detection)
@@ -53,7 +54,7 @@ Use cases for observers include:
  * Simplified application logic.
 
 # IDBTransaction.observe(...)
-The function `IDBTransaction.observe(function(changes){...}, options)` is added.
+The function [`IDBTransaction.observe(function(changes){...}, options)`](/IDBObservers.webidl) is added.
 
 This function causes an observer to be created for the object stores that the given transaction is operating on, or the object stores returned by `IDBTransaction.objectStoreNames`. The returned object is a 'control' object which can be used to stop the observer. The given function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or 'stop' is called on the control object.
 
@@ -61,7 +62,7 @@ This function causes an observer to be created for the object stores that the gi
 ```js
 // Example default options object:
 options: {
-  transaction:  false,  // Includes a readonly transaction in the observer callback.
+  transaction:  false,  // Includes a readonly transaction in the observer callback, over all the object stores we're observing.
   onlyExternal: false,  // Only listen for changes from other database connections.
   storeOptions: null    // An optional Map<String, IDBObserverDataStoreOptions>.
 }
@@ -78,6 +79,7 @@ storeOptions: {
   }
 }
 ```
+(see [IDBObservers.webidl](IDBObservers.webidl))
 
 By default, the observer is given the keys of changed items in all object stores it's listening to, and no transaction is created for the observe callback. The observer __always observes the object stores that the transaction was created with__ (object stores returned by `IDBTransaction.objectStoreNames`).
 
@@ -108,6 +110,7 @@ changes: {
   records: Map<string, Array<object>> // The changes, outlined below.
 }
 ```
+(see [IDBObservers.webidl](IDBObservers.webidl))
 
 ###### `records`
 The records value in the changes object is a javascript Map of object store name to the array of change records. This allows us to include changes from multiple object stores in our callback. (Ex: you are observing object stores 'a' and 'b', and a transaction modifies both of them)
@@ -129,7 +132,7 @@ Example **records** Map object:
 Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.
 
 #### Return Value & Lifetime
-The return value of the `IDBDatabase.observe` function is the control object, which has the following schema:
+The return value of the `IDBDatabase.observe` function is the [IDBObserverControl](IDBObservers.webidl) object, which has the following schema:
 ```js
 control: {
   db: <IDBDatabase object>
@@ -180,7 +183,7 @@ Issues section here: https://github.com/dmurph/indexed-db-observers/issues
 For future feature detection, the developer can use the 'IDBObserverControl.options' object to check if the options they specified in `observe(...)` are supported.
 
 # Spec changes
-These are the approximate spec changes that would happen.
+These are the approximate spec changes that would happen. See [IDBObservers.webidl](IDBObservers.webidl) for the WebIDL file.
 
 The following extra 'hidden variables' will be kept track of in the spec inside of IDBTransaction:
  * `pending_observer_construction` - a list of {uuid string, options map, callback function} tuples.
