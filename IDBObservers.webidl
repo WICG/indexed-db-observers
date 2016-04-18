@@ -40,6 +40,7 @@ dictionary IDBObserverDataStoreOptions {
 
 dictionary IDBObserverChanges {
     IDBDatabase db;
+    // Transaction contains the same object stores as the transaction on which IDBTransaction.observe was called.
     IDBTransaction transaction;
     // This is the javascript Map<String, sequence<IDBObserverChangeRecord>>,
     // where the key is the object store name.
