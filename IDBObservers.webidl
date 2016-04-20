@@ -9,9 +9,6 @@ partial interface IDBTransaction {
 // * Check if the observer is currently observing.
 interface IDBObserverControl {
     [ReadOnly] IDBDatabase db;
-    // This allows the developer to check which options they specified are supported.
-    // This is a parsed and validated version of the options given to |observe(...)|.
-    [ReadOnly] IDBObserverOptions options;
 
     void stop();
     boolean isAlive();
