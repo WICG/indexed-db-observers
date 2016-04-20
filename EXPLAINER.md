@@ -173,7 +173,7 @@ https://dmurph.github.io/indexed-db-observers/
 Issues section here: https://github.com/dmurph/indexed-db-observers/issues
 
 # Feature Detection
-For future feature detection, the developer can use the 'IDBObserverControl.options' object to check if the options they specified in `observe(...)` are supported.
+I'm not sure how we're going to do feature detection. What do you think? What is normal on the web platform?
 
 # Spec changes
 These are the approximate spec changes that would happen. See [IDBObservers.webidl](IDBObservers.webidl) for the WebIDL file.
