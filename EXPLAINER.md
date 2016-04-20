@@ -190,6 +190,9 @@ When `isAlive()` is called on the observer control, it looks in the domain-speci
 
 When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list.
 
+See [IDBObservers.webidl](IDBObservers.webidl) for the IDBObserverControl interface.
+
+
 ## Change Recording
 Every change would record an entry in the `change_list` for the given object store.
 
