@@ -117,7 +117,7 @@ The records value in the changes object is a javascript Map of object store name
 The `key` of the map is the object store name, and the `value` element of the map is a JS array, with each value containing:
  * `type`: `add`, `put`, `delete`, or `clear`
  * optional `key`: The key or IDBKeyRange for the operation (the `clear` type does not populate a key)
- * optional `value`: The value inserted into the database by `add` or `put`. Included if the `includeValues` option is specified.
+ * optional `value`: The value inserted into the database by `add` or `put`. Included if the `values` option is specified. Note: this is **not included for `delete` or `clear` operations**, because that would require reading from the database, instead of just recording our change operations.
 Example **records** Map object:
 ```js
 {'objectStore1' => [{type: "add", key: IDBKeyRange.only(1), value: "val1"},
