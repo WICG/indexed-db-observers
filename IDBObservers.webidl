@@ -3,7 +3,7 @@ dictionary IDBObserverInit {
   boolean values = false;
   boolean noRecords = false;
   boolean onlyExternal = false;
-}
+};
 
 callback IDBObserverCallback = void (IDBObserverChanges);
 
@@ -19,7 +19,7 @@ interface IDBObserver {
     // Stops all observations to the given database.
     [RaisesException]
     void unobserve(IDBDatabase database);
-}
+};
 
 interface IDBObserverChanges {
     readonly IDBDatabase db;
