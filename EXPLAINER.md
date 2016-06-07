@@ -50,7 +50,142 @@ Use cases for observers include:
  * Updating the UI from database changes (data binding).
  * Syncing local state from background worker (like a ServiceWorker) or another tab making changes.
  * Serializing changes for network communication.
+ * Maintaining an in-memory cache.
  * Simplified application logic.
+
+# Example Uses
+
+## UI Element
+Let's say we're a polymer or angular webapp, and we have databinding working. **We rely on the guarantee that the observer will start immediately after the transaction it was created with**.
+
+```javascript
+// uiComponent contains logic for updating it's own data.
+var uiComponent = this;
+// This function updates our UI component when the database is changed.
+var updateUICallback = function(changes) {
+  changes.records.get('users').forEach(function(record) {
+    switch(record.type) {
+      case 'clear':
+        uiComponent.clear();
+        break;
+      case 'add':
+        uiComponent.addUser(change.key, change.value);
+        break;
+      case 'put':
+        uiComponent.updateUser(change.key, change.value);
+        break;
+      case 'delete':
+        uiComponent.removeUser(change.key);
+        break;
+    }
+  });
+}
+// Observer creation. We want to include the values,
+// as we'll always use them to populate the UI.
+var observer = new IndexedDBObserver(updateUICallback, { values: true });
+// Create or transaction for both reading the table and attaching the observer.
+var txn = db.transaction('users', 'readonly');
+// We'll start seeing changes after 'txn' is complete.
+observer.observe(db, txn);
+// Now we read in our initial state for the component.
+var usersTable = txn.objectStore('users');
+var request = usersTable.getAll();
+request.onsuccess = function() {
+  request.result.forEach(function(user) {
+    uiComponent.addUser(user.id, user);
+  });
+}
+txn.oncomplete = function() {
+  console.log('component initialized and observer started');
+}
+```
+
+## Server sync worker
+We want to synchronize changes to a webserver. Let's say we're storing all of our operations in an oplog, which we send to the network whenever we get changes, and then delete the records afterwards. If we ever close/crash/timeout before the records are sent, they'll be around for our next run. **We rely on the guarantee that the observer will start immediately after the transaction it was created with**.
+
+```javascript
+// We are bad developers and don't batch our network calls.
+// We just send them whenever there's a change.
+var onDatabaseChanges = function(changes) {
+  var changesForNetwork = [];
+  changes.records.get('oplog').forEach(change => {
+    if (change.type == 'delete') return;
+    changesForNetwork.push(change);
+  });
+  sendChangesToNetwork(changesForNetwork).then(function() {
+      var removalTxn = db.transaction('oplog', 'readwrite');
+      removalTxn.objectstore('oplog').delete(changesForNetwork); // psuedocode here
+    });
+}
+var observer = new IndexedDBObserver(onDatabaseChanges, { onlyExternal: true, values: true });
+
+var txn = db.transaction('oplog', 'readonly');
+observer.observe(db, txn);
+// Here we catch any changes that we missed due to crashing
+// or shutting down.
+var readAll = txn.getAll();
+readAll.onsuccess = function() {
+  sendPendingChangesToNetwork(readAll.result).then(function() {
+      var removalTxn = db.transaction('oplog', 'readwrite');
+      removalTxn.objectstore('oplog').delete(readAll.result); // psuedocode here
+    }).catch(function(){
+      // couldn't send changes to network.
+    });
+}
+txn.oncomplete = function() {
+  console.log('Database is initialized and we are syncing changes');
+}
+```
+
+## Maintaining an in-memory data cache
+IDB can be slow due to disk, so it's a good idea to have an in-memory cache.  Note that we don't include values here, as we want to optimize our memory usage by reading in the cache in a larger batch, and at an opportune time. **We rely on the guarantee that the observer will start immediately after the transaction it was created with**.
+
+```javascript
+// let's assume our cache batches together reads once we get enough changes
+// or a timeout occurs. So we want to give it changes, and let it optionally read
+// in a bunch of data.
+var usersCache = this.cache;
+var updateUsersCache = function(changes) {
+  usersCache.addChanges(changes.records.get('users'));
+  usersCache.maybeResolveChanges(changes.transaction);
+}
+var observer = new IndexedDBObserver(updateUsersCache, { transaction: true });
+var txn = db.transaction('users', 'readonly');
+// Attach our observer.
+var optionsMap = new Map();
+optionsMap.put('users', { ranges: IDBKeyRange.bound(0, 1000)});
+observer.observe(db, txn, optionsMap);
+// Read initial contents of the cache.
+var os = txn.objectStore('users');
+var readRequest = os.getAll(IDBKeyRange.bound(0, 1000), 50);
+readRequest.onsuccess = function() {
+  var users = readRequest.result;
+  usersCache.addUsers(users);
+}
+txn.oncomplete = function() {
+  console.log("Cache initialized and listening");
+}
+
+```
+
+## Custom refresh logic
+If we just want to know when an object store has changed. This isn't the most efficient, but this might be the 'starting block' websites use to transition to observers, as at some point they would read the database using a transaction to update their UI.
+ 
+```javascript
+// We just grab the transaction and give it to our UI refresh logic.
+var refreshDataCallback = function(changes) {
+  refreshDataWithTransaction(changes.transaction);
+}
+// We disable records, so we just get the callback without any data.
+// We ask for the transaction, which guarentees we're reading the current
+// state of the database and we won't miss any changes.
+var observer = new IndexedDBObserver(
+    refreshDataCallback, { records: false, transaction: true });
+observer.observe(db, db.transact('users', 'readonly'));
+```
+
+# interface IDBObserver
+
 
 # IDBTransaction.observe(...)
 The function [`IDBTransaction.observe(function(changes){...}, options)`](/IDBObservers.webidl) is added.
