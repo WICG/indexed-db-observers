@@ -8,20 +8,27 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
 **Table of Contents**
 
 - [Why?](#why)
-- [IDBTransaction.observe(...)](#idbtransactionobserve)
+- [Example Uses](#example-uses)
+  - [UI Element](#ui-element)
+  - [Server sync worker](#server-sync-worker)
+  - [Maintaining an in-memory data cache](#maintaining-an-in-memory-data-cache)
+  - [Custom refresh logic](#custom-refresh-logic)
+- [interface IDBObserver](#interface-idbobserver)
+  - [new IDBObserver(callback, options)](#new-idbobservercallback-options)
       - [`options` Argument](#options-argument)
-      - [Observer Function](#observer-function)
-          - [`changes` Argument](#changes-argument)
-          - [`records`](#records)
-      - [Return Value & Lifetime](#return-value--lifetime)
-      - [Example Usage](#example-usage)
-- [Observation Consistency & Guarantees](#observation-consistency--guarantees)
-- [Examples](#examples)
+  - [IDBObserver.observe(...)](#idbobserverobserve)
+    - [`ranges` Argument](#ranges-argument)
+  - [IDBObserver.unobserve(database)](#idbobserverunobservedatabase)
+  - [Callback Function](#callback-function)
+    - [`changes` Argument](#changes-argument)
+    - [`records`](#records)
+  - [Lifetime](#lifetime)
+- [Observation Consistency & Guarantees](#observation-consistency-&-guarantees)
+- [Examples (old)](#examples-old)
 - [Open Issues](#open-issues)
 - [Feature Detection](#feature-detection)
 - [Spec changes](#spec-changes)
   - [Observer Creation](#observer-creation)
-  - [Observer Control](#observer-control)
   - [Change Recording](#change-recording)
   - [Observer Calling](#observer-calling)
 - [Future Features](#future-features)
@@ -38,7 +45,6 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
     - [How do I know I have a true state?](#how-do-i-know-i-have-a-true-state)
     - [Why only populate the objectStore name in the `changes` records map?](#why-only-populate-the-objectstore-name-in-the-changes-records-map)
     - [Why not use ES6 Proxies?](#why-not-use-es6-proxies)
-    - [Why not more like Object.observe?](#why-not-more-like-objectobserve)
     - [What realm are the change objects coming from?](#what-realm-are-the-change-objects-coming-from)
     - [Why not observe from ObjectStore object?](#why-not-observe-from-objectstore-object)
 
@@ -232,14 +238,14 @@ The ranges argument lets us specify the specific IDBKeyRanges that we want to ob
 ## IDBObserver.unobserve(database)
 This stops observation of the given target database connection. This will stop all `observe` registrations to the given database connection.
 
-#### Observer Function
-The observer function will be called whenever a transaction is successfully completed on the applicable object store/s. There is one observer callback per applicable transaction.
+## Callback Function
+The observer callback function will be called whenever a transaction is successfully completed on the applicable object store/s. There is one observer callback per applicable transaction.
 
 The observer functionality starts after the the transaction the observer was created in is completed. This allows the creator to read the 'true' state of the world before the observer starts. In other words, this allows the developer to control exactly when the observing begins.
 
 The function will continue observing until either the database connection used to create the transaction is closed (and all pending transactions have completed), or `stop()` is called on the observer.
 
-###### `changes` Argument
+### `changes` Argument
 The **`changes`** argument includes the following:
 ```js
 changes: {
@@ -253,7 +259,7 @@ changes: {
 ```
 (see [IDBObservers.webidl](IDBObservers.webidl))
 
-###### `records`
+### `records`
 The records value in the changes object is a javascript Map of object store name to the array of change records. This allows us to include changes from multiple object stores in our callback. (Ex: you are observing object stores 'a' and 'b', and a transaction modifies both of them)
 
 The `key` of the map is the object store name, and the `value` element of the map is a JS array, with each value containing:
@@ -273,7 +279,7 @@ Example **records** Map object:
 
 Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.
 
-#### Return Value & Lifetime
+## Lifetime
 The observer will hold a strong reference to the callback and database connections that the observer is observing hold a reference to the observer. The database releases it's connections to it's observers when either `unobserve(db)` is called, or the database connection is closed.
 
 In cases like corruption, the database connection is automatically closed, and that will then close all of the observers (see Issue #9).
