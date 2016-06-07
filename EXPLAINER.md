@@ -82,7 +82,8 @@ var updateUICallback = function(changes) {
 }
 // Observer creation. We want to include the values,
 // as we'll always use them to populate the UI.
-var observer = new IndexedDBObserver(updateUICallback, { values: true });
+var observer = new IndexedDBObserver(
+    updateUICallback, { values: true, operations: ['add', 'put', 'delete', 'clear'] });
 // Create or transaction for both reading the table and attaching the observer.
 var txn = db.transaction('users', 'readonly');
 // We'll start seeing changes after 'txn' is complete.
@@ -109,7 +110,6 @@ We want to synchronize changes to a webserver. Let's say we're storing all of ou
 var onDatabaseChanges = function(changes) {
   var changesForNetwork = [];
   changes.records.get('oplog').forEach(change => {
-    if (change.type == 'delete') return;
     changesForNetwork.push(change);
   });
   sendChangesToNetwork(changesForNetwork).then(function() {
@@ -117,7 +117,8 @@ var onDatabaseChanges = function(changes) {
       removalTxn.objectstore('oplog').delete(changesForNetwork); // psuedocode here
     });
 }
-var observer = new IndexedDBObserver(onDatabaseChanges, { onlyExternal: true, values: true });
+var observer = new IndexedDBObserver(
+    onDatabaseChanges, { onlyExternal: true, values: true, operations: ['add', 'put'] });
 
 var txn = db.transaction('oplog', 'readonly');
 observer.observe(db, txn);
@@ -149,7 +150,8 @@ var updateUsersCache = function(changes) {
   usersCache.addChanges(changes.records.get('users'));
   usersCache.maybeResolveChanges(changes.transaction);
 }
-var observer = new IndexedDBObserver(updateUsersCache, { transaction: true });
+var observer = new IndexedDBObserver(
+    updateUsersCache, { transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
 var txn = db.transaction('users', 'readonly');
 // Attach our observer.
 var optionsMap = new Map();
@@ -180,50 +182,55 @@ var refreshDataCallback = function(changes) {
 // We ask for the transaction, which guarentees we're reading the current
 // state of the database and we won't miss any changes.
 var observer = new IndexedDBObserver(
-    refreshDataCallback, { records: false, transaction: true });
+    refreshDataCallback, { noRecords: true, transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
 observer.observe(db, db.transact('users', 'readonly'));
 ```
 
 # interface IDBObserver
+The interface [`IDBObserver`](/IDBObservers.webidl) is added. This object owns the callback and options of the observer. We then use this object to observe databases (or targets), similar to IntersectionObserver and MutationObserver.
 
+## new IDBObserver(callback, options)
+This creates the observer object with the callback and options. All observations initated with this object will use the given callback and options.
 
-# IDBTransaction.observe(...)
-The function [`IDBTransaction.observe(function(changes){...}, options)`](/IDBObservers.webidl) is added.
-
-This function causes an observer to be created for the object stores that the given transaction is operating on, or the object stores returned by `IDBTransaction.objectStoreNames`. The returned object is a 'control' object which can be used to stop the observer. The given function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or 'stop' is called on the control object.
+**The operations option is required, and cannot be an empty list.**
 
 #### `options` Argument
 ```js
-// Example default options object:
+// Example options object.
+// Note: all default values are false. The only required attribute is 'operations', and it can't be empty.
 options: {
   transaction:  false,  // Includes a readonly transaction in the observer callback, over all the object stores we're observing.
+  values: false, // Includes the values of each row changed.
+  noRecords: false, // Removes all records, and just tells us when things change.
   onlyExternal: false,  // Only listen for changes from other database connections.
-  storeOptions: null    // An optional Map<String, IDBObserverDataStoreOptions>.
-}
-
-// Example default 'storeOptions' map:
-storeOptions: {
-  'objectStoreName1': => {
-    value: false,      // Includes the 'value' of each change in the change array.
-    noRecords: false,  // Exclude the records for this object store.
-    ranges: null       // Specifies ranges to listen to in the object store.
-  },
-  'objectStoreName2' => {
-    // etc
-  }
+  operations: ['put', 'add', 'delete', 'clear'] // Filter our change operations.
 }
 ```
-(see [IDBObservers.webidl](IDBObservers.webidl))
-
-By default, the observer is given the keys of changed items in all object stores it's listening to, and no transaction is created for the observe callback. The observer __always observes the object stores that the transaction was created with__ (object stores returned by `IDBTransaction.objectStoreNames`).
 
 More explanation of each option:
 
+ * `operations` is required, and lists the operations that the observer wants to see. This cannot be empty. Accepted values are `put`, `add`, `delete`, and `clear`.
  * If `transaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
  * If `onlyExternal` is specified, then only changes from other database connections will be observed. This can be another connection on the same page, or a connection from a different browsing context (background worker, tab, etc).
  * If `value` is specified, then values for all `put` and `add` will be included for the resptive object stores. However, these values can be large depending on your use of the IndexedDB.
  * If `noRecords` is specified, then the observer will be called for all changes, but no records will be included in the changes object for that object store. This is the most lightweight option having an observer.
- * If `ranges` is populated (as an sequence<IDBKeyRange>), then the observer will only observe changes for the respective object store in the key ranges specified in this sequence.
+
+## IDBObserver.observe(...)
+The function [`IDBObserver.observe(database, transaction, ranges)`](/IDBObservers.webidl) is added.
+
+This function starts observation on the target database connection using the given transaction. We start observing the object stores that the given transaction is operating on (the object stores returned by `IDBTransaction.objectStoreNames`). Observation will start at the end of the given transaction, and the observer's callback function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or `IDBObserver.unobserve` is called with the target database.
+
+### `ranges` Argument
+The ranges argument lets us specify the specific IDBKeyRanges that we want to observer, per object store.
+
+// Example 'ranges' map:
+{
+  'objectStoreName1': => [IDBKeyRange.bound(0, 10), IDBKeyRange.lowerBound(100)],
+  'objectStoreName2' => [IDBKeyRange.only(0)]
+}
+
+## IDBObserver.unobserve(database)
+This stops observation of the given target database connection. This will stop all `observe` registrations to the given database connection.
 
 #### Observer Function
 The observer function will be called whenever a transaction is successfully completed on the applicable object store/s. There is one observer callback per applicable transaction.
@@ -267,28 +274,9 @@ Example **records** Map object:
 Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.
 
 #### Return Value & Lifetime
-The return value of the `IDBTransaction.observe` function is the [IDBObserverControl](IDBObservers.webidl) object, which has the following schema:
-```js
-control: {
-  db: <IDBDatabase object>
-  options: <IDBObserverOptions object> // parsed and validated from observe(...) call. Used for feature detection/validation.
-  stop: function(){...},   // This stops the observer permanently.
-  isAlive: function(){...}, // This returns if the observer is alive
-}
-```
-The observer is alive (and continues observing changes) until stop() is called, or the database connection is was created with is closed.
+The observer will hold a strong reference to the callback and database connections that the observer is observing hold a reference to the observer. The database releases it's connections to it's observers when either `unobserve(db)` is called, or the database connection is closed.
 
 In cases like corruption, the database connection is automatically closed, and that will then close all of the observers (see Issue #9).
-
-#### Example Usage
-```js
-// ... assume 'db' is the database connection
-var txn = db.transaction(['objectStore'], 'readonly');
-var control = txn.observe(function(changes) {
-  var records = changes.records.get('objectStore');
-  console.log('Observer got change records: ', records);
-});
-```
 
 # Observation Consistency & Guarantees
 To give the observer strong consistency of the world that it is observing, we need to allow it to
@@ -301,12 +289,12 @@ For #2, we optionally allow the observer to
  1. Include the values of the changed keys.  Since we know the initial state, with the keys & values of all changes we can maintain a consistent state of the object stores.
  2. Include a readonly transaction of the observing object stores.  This transaction is scheduled right after the transaction that made these changes, so the object store will be consistent with the 'post observe' world.
 
-# Examples
+# Examples (old)
 See the html files for examples, hosted here:
 https://dmurph.github.io/indexed-db-observers/
 
 # Open Issues
-Issues section here: https://github.com/dmurph/indexed-db-observers/issues
+Issues section here: https://github.com/WICG/indexed-db-observers/issues
 
 # Feature Detection
 I'm not sure how we're going to do feature detection. What do you think? What is normal on the web platform?
@@ -320,14 +308,6 @@ The following extra 'hidden variables' will be kept track of in the spec inside 
 
 ## Observer Creation
 When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
-
-## Observer Control
-When `isAlive()` is called on the observer control, it looks in the domain-specific list of observers to find the observer with it's uuid.  If that observer does not exist, then it returns false.
-
-When `stop()` is called on the control, the observer with the control's uuid is removed from the domain-specific observer list.
-
-See [IDBObservers.webidl](IDBObservers.webidl) for the IDBObserverControl interface.
-
 
 ## Change Recording
 Every change would record an entry in the `change_list` for the given object store.
@@ -413,13 +393,6 @@ Object store objects are only valid when retrieved from transactions. The only r
 The two main reasons are:
  1. We need to observe changes across browsing contexts. Passing a proxy across browsing contexts in not possible, and it's infeasible to have every browsing context create a proxy and give it to everyone else (n*n total proxies).
  2. Changes are committed on a per-transaction basis, and can include changes to multiple object stores. We can encompass this is an easy way when we control the observation function, where this would require specialized and complex logic by the client if it was proxy-based.
-
-### Why not more like Object.observe?
- 1. We need to include a lot more metadata, like transactions.
- 2. We need to include changes from multiple object stores for a single callback.
- 3. We can't include the 'old' values.
- 4. Operation type conflicts:  'put' vs 'update'
- 5. That's being deprecated & removed.
 
 ### What realm are the change objects coming from?
 All changes (the keys and values) are structured cloneable, and are cloned from IDB. So they are not coming from a different realm.
