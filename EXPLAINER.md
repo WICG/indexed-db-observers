@@ -229,11 +229,13 @@ This function starts observation on the target database connection using the giv
 ### `ranges` Argument
 The ranges argument lets us specify the specific IDBKeyRanges that we want to observer, per object store.
 
+```javascript
 // Example 'ranges' map:
 {
   'objectStoreName1': => [IDBKeyRange.bound(0, 10), IDBKeyRange.lowerBound(100)],
   'objectStoreName2' => [IDBKeyRange.only(0)]
 }
+```
 
 ## IDBObserver.unobserve(database)
 This stops observation of the given target database connection. This will stop all `observe` registrations to the given database connection.
