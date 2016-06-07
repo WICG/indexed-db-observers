@@ -1,12 +1,6 @@
-dictionary IDBObserverInit {
-  boolean transaction = false;
-  boolean values = false;
-  boolean noRecords = false;
-  boolean onlyExternal = false;
-};
-
 callback IDBObserverCallback = void (IDBObserverChanges);
 
+// We are required to specify the operations we are interested in in the IDBObserverInit argument.
 [Constructor(IDBObserverCallback calback, IDBObserverInit options)]
 interface IDBObserver {
     // Starts observing on the object stores in 'transaction' (IDBTransaction.objectStoreNames)
@@ -19,6 +13,19 @@ interface IDBObserver {
     // Stops all observations to the given database.
     [RaisesException]
     void unobserve(IDBDatabase database);
+};
+
+enum IDBObserverChangeRecordType {
+    "add", "put", "delete", "clear"
+};
+
+dictionary IDBObserverInit {
+  boolean transaction = false;
+  boolean values = false;
+  boolean noRecords = false;
+  boolean onlyExternal = false;
+  // This is a whitelist of operations we want to observe. This cannot be empty.
+  required sequence<IDBObserverChangeRecordType> operations;
 };
 
 interface IDBObserverChanges {
@@ -35,8 +42,4 @@ interface IDBObserverChangeRecord {
     // When the record is a "delete" type, this is an IDBKeyRange.
     readonly any key;
     readonly any value;
-};
-
-enum IDBObserverChangeRecordType {
-    "add", "put", "delete", "clear"
 };
