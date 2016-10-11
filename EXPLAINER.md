@@ -207,7 +207,7 @@ This creates the observer object with the callback and options. All observations
 options: {
   transaction:  false,  // Includes a readonly transaction in the observer callback, over all the object stores we're observing.
   values: false, // Includes the values of each row changed.
-  noRecords: false, // Removes all records, and just tells us when things change.
+  noRecords: false, // Removes all records ('records' is null), and just tells us when things change.
   onlyExternal: false,  // Only listen for changes from other database connections.
   operations: ['put', 'add', 'delete', 'clear'] // Filter our change operations.
 }
@@ -219,7 +219,7 @@ More explanation of each option:
  * If `transaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
  * If `onlyExternal` is specified, then only changes from other database connections will be observed. This can be another connection on the same page, or a connection from a different browsing context (background worker, tab, etc).
  * If `value` is specified, then values for all `put` and `add` will be included for the resptive object stores. However, these values can be large depending on your use of the IndexedDB.
- * If `noRecords` is specified, then the observer will be called for all changes, but no records will be included in the changes object for that object store. This is the most lightweight option having an observer.
+ * If `noRecords` is specified, then the observer will be called for all changes, but the records map will be null. This is the most lightweight option having an observer.
 
 ## IDBObserver.observe(...)
 The function [`IDBObserver.observe(database, transaction, ranges)`](/IDBObservers.webidl) is added.
