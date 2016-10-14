@@ -15,9 +15,8 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
   - [Custom refresh logic](#custom-refresh-logic)
 - [interface IDBObserver](#interface-idbobserver)
   - [new IDBObserver(callback, options)](#new-idbobservercallback-options)
-      - [`options` Argument](#options-argument)
   - [IDBObserver.observe(...)](#idbobserverobserve)
-    - [`ranges` Argument](#ranges-argument)
+    - [`options` Argument](#options-argument)
   - [IDBObserver.unobserve(database)](#idbobserverunobservedatabase)
   - [Callback Function](#callback-function)
     - [`changes` Argument](#changes-argument)
@@ -88,12 +87,11 @@ var updateUICallback = function(changes) {
 }
 // Observer creation. We want to include the values,
 // as we'll always use them to populate the UI.
-var observer = new IndexedDBObserver(
-    updateUICallback, { values: true, operations: ['add', 'put', 'delete', 'clear'] });
+var observer = new IndexedDBObserver(updateUICallback);
 // Create or transaction for both reading the table and attaching the observer.
 var txn = db.transaction('users', 'readonly');
 // We'll start seeing changes after 'txn' is complete.
-observer.observe(db, txn);
+observer.observe(db, txn, { values: true, operations: ['add', 'put', 'delete', 'clear'] });
 // Now we read in our initial state for the component.
 var usersTable = txn.objectStore('users');
 var request = usersTable.getAll();
@@ -123,11 +121,10 @@ var onDatabaseChanges = function(changes) {
       removalTxn.objectstore('oplog').delete(changesForNetwork); // psuedocode here
     });
 }
-var observer = new IndexedDBObserver(
-    onDatabaseChanges, { onlyExternal: true, values: true, operations: ['add', 'put'] });
+var observer = new IndexedDBObserver(onDatabaseChanges);
 
 var txn = db.transaction('oplog', 'readonly');
-observer.observe(db, txn);
+observer.observe(db, txn, { onlyExternal: true, values: true, operations: ['add', 'put'] });
 // Here we catch any changes that we missed due to crashing
 // or shutting down.
 var readAll = txn.getAll();
@@ -156,13 +153,12 @@ var updateUsersCache = function(changes) {
   usersCache.addChanges(changes.records.get('users'));
   usersCache.maybeResolveChanges(changes.transaction);
 }
-var observer = new IndexedDBObserver(
-    updateUsersCache, { transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
+var observer = new IndexedDBObserver(updateUsersCache);
 var txn = db.transaction('users', 'readonly');
 // Attach our observer.
-var optionsMap = new Map();
-optionsMap.put('users', { ranges: IDBKeyRange.bound(0, 1000)});
-observer.observe(db, txn, optionsMap);
+var rangesMap = new Map();
+rangesMap.put('users', [IDBKeyRange.bound(0, 1000]);
+observer.observe(db, txn, , { transaction: true, operations: ['add', 'put', 'delete', 'clear'], ranges: rangesMap });
 // Read initial contents of the cache.
 var os = txn.objectStore('users');
 var readRequest = os.getAll(IDBKeyRange.bound(0, 1000), 50);
@@ -187,29 +183,39 @@ var refreshDataCallback = function(changes) {
 // We disable records, so we just get the callback without any data.
 // We ask for the transaction, which guarentees we're reading the current
 // state of the database and we won't miss any changes.
-var observer = new IndexedDBObserver(
-    refreshDataCallback, { noRecords: true, transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
-observer.observe(db, db.transact('users', 'readonly'));
+var observer = new IndexedDBObserver(refreshDataCallback);
+observer.observe(db, db.transact('users', 'readonly'), { noRecords: true, transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
 ```
 
 # interface IDBObserver
-The interface [`IDBObserver`](/IDBObservers.webidl) is added. This object owns the callback and options of the observer. We then use this object to observe databases (or targets), similar to IntersectionObserver and MutationObserver.
+The interface [`IDBObserver`](/IDBObservers.webidl) is added. This object owns the callback of the observer. We then use this object to observe databases (or targets), similar to IntersectionObserver and MutationObserver.
 
-## new IDBObserver(callback, options)
-This creates the observer object with the callback and options. All observations initated with this object will use the given callback and options.
+## new IDBObserver(callback)
+This creates the observer object with the callback. All observations initated with this object will use the given callback.
 
-**The operations option is required, and cannot be an empty list.**
+## IDBObserver.observe(...)
+The function [`IDBObserver.observe(database, transaction, options)`](/IDBObservers.webidl) is added.
 
-#### `options` Argument
+This function starts observation on the target database connection using the given transaction. We start observing the object stores that the given transaction is operating on (the object stores returned by `IDBTransaction.objectStoreNames`). Observation will start at the end of the given transaction, and the observer's callback function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or `IDBObserver.unobserve` is called with the target database.
+
+**The `options` argument - with the `operations` populated - is required**
+
+### `options` Argument
+These options effect what gets sent to the observer callback.
+
 ```js
 // Example options object.
-// Note: all default values are false. The only required attribute is 'operations', and it can't be empty.
+// Note: all default values are false (or null for ranges). The only required attribute is 'operations', and it can't be empty.
 options: {
   transaction:  false,  // Includes a readonly transaction in the observer callback, over all the object stores we're observing.
   values: false, // Includes the values of each row changed.
   noRecords: false, // Removes all records ('records' is null), and just tells us when things change.
-  onlyExternal: false,  // Only listen for changes from other database connections.
+  onlyExternal: false,  // Optionally listen for changes from only other database connections.
   operations: ['put', 'add', 'delete', 'clear'] // Filter our change operations.
+  ranges: /* Example 'ranges' Map (psuedocode) */ { 
+    'objectStoreName1': => [IDBKeyRange.bound(0, 10), IDBKeyRange.lowerBound(100)],
+    'objectStoreName2' => [IDBKeyRange.only(0)]
+  }
 }
 ```
 
@@ -220,22 +226,7 @@ More explanation of each option:
  * If `onlyExternal` is specified, then only changes from other database connections will be observed. This can be another connection on the same page, or a connection from a different browsing context (background worker, tab, etc).
  * If `value` is specified, then values for all `put` and `add` will be included for the resptive object stores. However, these values can be large depending on your use of the IndexedDB.
  * If `noRecords` is specified, then the observer will be called for all changes, but the records map will be null. This is the most lightweight option having an observer.
-
-## IDBObserver.observe(...)
-The function [`IDBObserver.observe(database, transaction, ranges)`](/IDBObservers.webidl) is added.
-
-This function starts observation on the target database connection using the given transaction. We start observing the object stores that the given transaction is operating on (the object stores returned by `IDBTransaction.objectStoreNames`). Observation will start at the end of the given transaction, and the observer's callback function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or `IDBObserver.unobserve` is called with the target database.
-
-### `ranges` Argument
-The ranges argument lets us specify the specific IDBKeyRanges that we want to observer, per object store.
-
-```javascript
-// Example 'ranges' map:
-{
-  'objectStoreName1': => [IDBKeyRange.bound(0, 10), IDBKeyRange.lowerBound(100)],
-  'objectStoreName2' => [IDBKeyRange.only(0)]
-}
-```
+ * `ranges` map lets us specify the specific IDBKeyRanges that we want to observer, per object store.
 
 ## IDBObserver.unobserve(database)
 This stops observation of the given target database connection. This will stop all `observe` registrations to the given database connection.
@@ -296,6 +287,20 @@ We accomplish #1 by incorporating a transaction into the creation of the observe
 For #2, we optionally allow the observer to
  1. Include the values of the changed keys.  Since we know the initial state, with the keys & values of all changes we can maintain a consistent state of the object stores.
  2. Include a readonly transaction of the observing object stores.  This transaction is scheduled right after the transaction that made these changes, so the object store will be consistent with the 'post observe' world.
+
+## Transaction Ordering (Edge Case)
+
+We require that the transaction given to the observer callback is over ALL object stores observed, even if the change is to a subset. This means we can hit the following scenario:
+
+1. Transaction A creates observer O stores X and Y.
+2. Transaction B writes to store X.
+3. Transaction C writes to store Y.
+
+The spec requires that the observer is called for both the B and C changes separately with the ability to have a readonly transaction for X and Y. When this happens can depend on the implementation.
+
+1. If the we have strict exclusive locks for writing, then creating observer O would merge the X and Y locks (as we always need to create a readonly transaction if any of the stores get modified on all of the object stores). O would be called after step 2 w/ B's changes while transcation C waits until AFTER the observer's transaction finishes.
+2. If the implementation allows database snapshots, then O can receive the readonly transaction while C executes, as the transaction for B's changes could take a snapshot of the database before C's changes.
+  i. Caveat - we wouldn't want another transaction after C to acquire a X or Y exclusive lock while O's transaction from B is still executing, as this could allow stale transactions to stick around.
 
 # Examples (old)
 See the html files for examples, hosted here:
