@@ -1,14 +1,12 @@
 callback IDBObserverCallback = void (IDBObserverChanges);
 
 // We are required to specify the operations we are interested in in the IDBObserverInit argument.
-[Constructor(IDBObserverCallback calback, IDBObserverInit options)]
+[Constructor(IDBObserverCallback calback)]
 interface IDBObserver {
     // Starts observing on the object stores in 'transaction' (IDBTransaction.objectStoreNames)
     // after that transaction is completed.
-    // 'ranges' is a Map<String, sequence<IDBKeyRange>>, which filter the observation by
-    // object store to the given key ranges.
     [RaisesException]
-    void observe(IDBDatabase target, IDBTransaction transaction, optional any ranges);
+    void observe(IDBDatabase target, IDBTransaction transaction, IDBObserveOptions options);
     
     // Stops all observations to the given database.
     [RaisesException]
@@ -19,13 +17,17 @@ enum IDBObserverChangeRecordType {
     "add", "put", "delete", "clear"
 };
 
-dictionary IDBObserverInit {
+dictionary IDBObserveOptions {
   boolean transaction = false;
   boolean values = false;
   boolean noRecords = false;
   boolean onlyExternal = false;
   // This is a whitelist of operations we want to observe. This cannot be empty.
   required sequence<IDBObserverChangeRecordType> operations;
+  
+  // This is a Map<String, sequence<IDBKeyRange>>, which filter the observation by
+  // object store to the given key ranges.
+  optional any ranges
 };
 
 interface IDBObserverChanges {
