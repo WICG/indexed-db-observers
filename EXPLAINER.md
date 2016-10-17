@@ -159,7 +159,8 @@ var txn = db.transaction('users', 'readonly');
 // Attach our observer.
 var rangesMap = new Map();
 rangesMap.put('users', [IDBKeyRange.bound(0, 1000]);
-observer.observe(db, txn, , { transaction: true, operations: ['add', 'put', 'delete', 'clear'], ranges: rangesMap });
+observer.observe(
+    db, txn, {transaction: true, operations: ['add', 'put', 'delete', 'clear'], ranges: rangesMap});
 // Read initial contents of the cache.
 var os = txn.objectStore('users');
 var readRequest = os.getAll(IDBKeyRange.bound(0, 1000), 50);
@@ -185,7 +186,9 @@ var refreshDataCallback = function(changes) {
 // We ask for the transaction, which guarentees we're reading the current
 // state of the database and we won't miss any changes.
 var observer = new IndexedDBObserver(refreshDataCallback);
-observer.observe(db, db.transact('users', 'readonly'), { noRecords: true, transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
+observer.observe(
+    db, db.transact('users', 'readonly'),
+    { noRecords: true, transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
 ```
 
 # interface IDBObserver
