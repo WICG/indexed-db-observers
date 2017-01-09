@@ -204,6 +204,8 @@ The function [`IDBObserver.observe(database, transaction, options)`](/IDBObserve
 
 This function starts observation on the target database connection using the given transaction. We start observing the object stores that the given transaction is operating on (the object stores returned by `IDBTransaction.objectStoreNames`). Observation will start at the end of the given transaction, and the observer's callback function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or `IDBObserver.unobserve` is called with the target database.
 
+The transaction CANNOT be an upgrade transaction.
+
 See [Exceptions](#exceptions).
 
 **The `options` argument - with the `operations` populated - is required**
@@ -344,6 +346,7 @@ The transactions given to the observers have one behavior difference - they cann
 An exception is thrown in the following cases (and in the following order):
 
 1. `.observe` on a database that is closed.
+2. `.observe` on a 'versionchange' transaction.
 2. `.observe` on a transaction that is finished.
 3. `.observe` on a transaction that is not active.
 4. `.observe` on a 'snapshot' type transaction (or whatever we call it - a transaction given in an observer callback).
