@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "IndexedDB observers",
   "main": "polyfill.js",
+  "typings": "polyfill.d.ts",
   "directories": {
     "example": "examples"
   },
