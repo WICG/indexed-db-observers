@@ -1,0 +1,21 @@
+{
+  "name": "indexed-db-observers",
+  "version": "1.0.0",
+  "description": "IndexedDB observers",
+  "main": "polyfill.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WICG/indexed-db-observers.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/WICG/indexed-db-observers/issues"
+  },
+  "homepage": "https://github.com/WICG/indexed-db-observers#readme"
+}
