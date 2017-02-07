@@ -90,7 +90,7 @@ var updateUICallback = function(changes) {
 }
 // Observer creation. We want to include the values,
 // as we'll always use them to populate the UI.
-var observer = new IndexedDBObserver(updateUICallback);
+var observer = new IDBObserver(updateUICallback);
 // Create or transaction for both reading the table and attaching the observer.
 var txn = db.transaction('users', 'readonly');
 // We'll start seeing changes after 'txn' is complete.
@@ -124,7 +124,7 @@ var onDatabaseChanges = function(changes) {
       removalTxn.objectstore('oplog').delete(changesForNetwork); // psuedocode here
     });
 }
-var observer = new IndexedDBObserver(onDatabaseChanges);
+var observer = new IDBObserver(onDatabaseChanges);
 
 var txn = db.transaction('oplog', 'readonly');
 observer.observe(db, txn, { onlyExternal: true, values: true, operations: ['add', 'put'] });
@@ -156,7 +156,7 @@ var updateUsersCache = function(changes) {
   usersCache.addChanges(changes.records.get('users'));
   usersCache.maybeResolveChanges(changes.transaction);
 }
-var observer = new IndexedDBObserver(updateUsersCache);
+var observer = new IDBObserver(updateUsersCache);
 var txn = db.transaction('users', 'readonly');
 // Attach our observer.
 var rangesMap = new Map();
@@ -187,7 +187,7 @@ var refreshDataCallback = function(changes) {
 // We disable records, so we just get the callback without any data.
 // We ask for the transaction, which guarentees we're reading the current
 // state of the database and we won't miss any changes.
-var observer = new IndexedDBObserver(refreshDataCallback);
+var observer = new IDBObserver(refreshDataCallback);
 observer.observe(
     db, db.transact('users', 'readonly'),
     { noRecords: true, transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
