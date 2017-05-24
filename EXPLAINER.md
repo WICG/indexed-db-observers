@@ -112,35 +112,60 @@ txn.oncomplete = function() {
 We want to synchronize changes to a webserver. Let's say we're storing all of our operations in an oplog, which we send to the network whenever we get changes, and then delete the records afterwards. If we ever close/crash/timeout before the records are sent, they'll be around for our next run. **We rely on the guarantee that the observer will start immediately after the transaction it was created with**.
 
 ```javascript
-// We are bad developers and don't batch our network calls.
-// We just send them whenever there's a change.
-var onDatabaseChanges = function(changes) {
+// The app adds local operations to the 'oplog' object store, and
+// expects those to be synced to the backend.
+
+// Startup transaction. This reads in entries that were left over
+// from the last time our page was alive - either things closed or
+// we couldn't send due to network issues. We also start observing
+// from this point on using this transaction.
+var startupTxn = db.transaction('oplog', 'readonly');
+
+// Helper method that removes all given operations from the oplog.
+var removeOperationsFromOplog(opKeys) {
+  var removalTxn = db.transaction('oplog', 'readwrite');
+  var oplog = removalTxn.objectstore('oplog');
+  for (let i = 0; i < keys.length; ++i) {
+    oplog.delete(keys[i]);
+  }
+}
+
+// Grab the possibly unsent operations from last run.
+var unsentOperationKeys = startupTxn.objectstore('oplog').getAllKeys();
+unsentOperationKeys.onsuccess = function() {
+  var keys = unsentOperationKeys.result;
+  // (readAllKeysFromIDB utility method for brevity - passes values)
+  readAllKeysFromIDB(startupTxn, keys)
+      .then(sendChangesToNetwork)
+      .then(removeOperationsFromOplog.bind(keys))
+      .catch(function() {
+          // handle network error
+        });
+}
+
+// Create our observer. This will start observing changes IMMEDIATELY
+// AFTER startupTxn is complete. We won't double-send the changes we
+// already read in startupTxn, and we won't miss any afterwards.
+var observer = new IDBObserver(function(changes) {
+  var changeKeys = [];
   var changesForNetwork = [];
   changes.records.get('oplog').forEach(change => {
-    changesForNetwork.push(change);
+    changeKeys.push(change.key);
+    changesForNetwork.push(change.value);
   });
-  sendChangesToNetwork(changesForNetwork).then(function() {
-      var removalTxn = db.transaction('oplog', 'readwrite');
-      removalTxn.objectstore('oplog').delete(changesForNetwork); // psuedocode here
-    });
-}
-var observer = new IDBObserver(onDatabaseChanges);
+  sendChangesToNetwork(changesForNetwork)
+      .then(removeOperationsFromOplog.bind(keys))
+      .catch(function() {
+          // handle network error
+        });
+});
 
-var txn = db.transaction('oplog', 'readonly');
-observer.observe(db, txn, { onlyExternal: true, values: true, operations: ['add', 'put'] });
-// Here we catch any changes that we missed due to crashing
-// or shutting down.
-var readAll = txn.getAll();
-readAll.onsuccess = function() {
-  sendPendingChangesToNetwork(readAll.result).then(function() {
-      var removalTxn = db.transaction('oplog', 'readwrite');
-      removalTxn.objectstore('oplog').delete(readAll.result); // psuedocode here
-    }).catch(function(){
-      // couldn't send changes to network.
-    });
-}
-txn.oncomplete = function() {
-  console.log('Database is initialized and we are syncing changes');
+// Attach the observer to the transaction.
+observer.observe(db, startupTxn,
+    { onlyExternal: true, values: true, operations: ['add', 'put'] });
+
+startupTxn.oncomplete = function() {
+  console.log('Observer is attached and we are syncing changes');
 }
 ```
 
