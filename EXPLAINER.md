@@ -9,10 +9,6 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
 
 - [Why?](#why)
 - [Example Uses](#example-uses)
-  - [UI Element](#ui-element)
-  - [Server sync worker](#server-sync-worker)
-  - [Maintaining an in-memory data cache](#maintaining-an-in-memory-data-cache)
-  - [Custom refresh logic](#custom-refresh-logic)
 - [interface IDBObserver](#interface-idbobserver)
   - [new IDBObserver(callback)](#new-idbobservercallback)
   - [IDBObserver.observe(...)](#idbobserverobserve)
@@ -28,19 +24,10 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
 - [Open Issues](#open-issues)
 - [Feature Detection](#feature-detection)
 - [Spec changes](#spec-changes)
-  - [Observer Creation](#observer-creation)
-  - [Change Recording](#change-recording)
-  - [Observer Calling](#observer-calling)
-  - [Observer Transactions](#observer-transactions)
-  - [Exceptions](#exceptions)
 - [Future Features](#future-features)
   - [Culling](#culling)
-    - [Culling Spec Changes](#culling-spec-changes)
-      - [Add Operation](#add-operation)
-      - [Put Operation](#put-operation)
-      - [Delete Operation](#delete-operation)
-      - [Clear Operation](#clear-operation)
 - [FAQ](#faq)
+    - [Why require `db` and not just `transaction` in `IDBObserver.observe`](#why-require-db-and-not-just-transaction-in-idbobserverobserve)
     - [Observing onUpgrade](#observing-onupgrade)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
     - [Why not issue 'deletes' instead a 'clear'?](#why-not-issue-deletes-instead-a-clear)
@@ -63,145 +50,8 @@ Use cases for observers include:
 
 # Example Uses
 
-## UI Element
-Let's say we're a polymer or angular webapp, and we have databinding working. **We rely on the guarantee that the observer will start immediately after the transaction it was created with**.
+See [the EXAMPLES.md doc](/EXAMPLES.md) for more examples.
 
-```javascript
-// uiComponent contains logic for updating it's own data.
-var uiComponent = this;
-// This function updates our UI component when the database is changed.
-var updateUICallback = function(changes) {
-  changes.records.get('users').forEach(function(record) {
-    switch(record.type) {
-      case 'clear':
-        uiComponent.clear();
-        break;
-      case 'add':
-        uiComponent.addUser(change.key, change.value);
-        break;
-      case 'put':
-        uiComponent.updateUser(change.key, change.value);
-        break;
-      case 'delete':
-        uiComponent.removeUser(change.key);
-        break;
-    }
-  });
-}
-// Observer creation. We want to include the values,
-// as we'll always use them to populate the UI.
-var observer = new IDBObserver(updateUICallback);
-// Create or transaction for both reading the table and attaching the observer.
-var txn = db.transaction('users', 'readonly');
-// We'll start seeing changes after 'txn' is complete.
-observer.observe(db, txn, { values: true, operations: ['add', 'put', 'delete', 'clear'] });
-// Now we read in our initial state for the component.
-var usersTable = txn.objectStore('users');
-var request = usersTable.getAll();
-request.onsuccess = function() {
-  request.result.forEach(function(user) {
-    uiComponent.addUser(user.id, user);
-  });
-}
-txn.oncomplete = function() {
-  console.log('component initialized and observer started');
-}
-```
-
-## Server sync worker
-We want to synchronize changes to a webserver. Let's say we're storing all of our operations in an oplog, which we send to the network whenever we get changes, and then delete the records afterwards. If we ever close/crash/timeout before the records are sent, they'll be around for our next run. **We rely on the guarantee that the observer will start immediately after the transaction it was created with**.
-
-```javascript
-// The app adds local operations to the 'oplog' object store, and
-// expects those to be synced to the backend.
-
-// Startup transaction. This reads in entries that were left over
-// from the last time our page was alive - either things closed or
-// we couldn't send due to network issues. We also start observing
-// from this point on using this transaction.
-var startupTxn = db.transaction('oplog', 'readonly');
-
-// Helper method that removes all given operations from the oplog.
-var removeOperationsFromOplog(opKeys) {
-  var removalTxn = db.transaction('oplog', 'readwrite');
-  var oplog = removalTxn.objectstore('oplog');
-  for (let i = 0; i < keys.length; ++i) {
-    oplog.delete(keys[i]);
-  }
-}
-
-// Grab the possibly unsent operations from last run.
-var unsentOperationKeys = startupTxn.objectstore('oplog').getAllKeys();
-unsentOperationKeys.onsuccess = function() {
-  var keys = unsentOperationKeys.result;
-  // (readAllKeysFromIDB utility method for brevity - passes values)
-  readAllKeysFromIDB(startupTxn, keys)
-      .then(sendChangesToNetwork)
-      .then(removeOperationsFromOplog.bind(keys))
-      .catch(function() {
-          // handle network error
-        });
-}
-
-// Create our observer. This will start observing changes IMMEDIATELY
-// AFTER startupTxn is complete. We won't double-send the changes we
-// already read in startupTxn, and we won't miss any afterwards.
-var observer = new IDBObserver(function(changes) {
-  var changeKeys = [];
-  var changesForNetwork = [];
-  changes.records.get('oplog').forEach(change => {
-    changeKeys.push(change.key);
-    changesForNetwork.push(change.value);
-  });
-  sendChangesToNetwork(changesForNetwork)
-      .then(removeOperationsFromOplog.bind(keys))
-      .catch(function() {
-          // handle network error
-        });
-});
-
-// Attach the observer to the transaction.
-observer.observe(db, startupTxn,
-    { onlyExternal: true, values: true, operations: ['add', 'put'] });
-
-startupTxn.oncomplete = function() {
-  console.log('Observer is attached and we are syncing changes');
-}
-```
-
-## Maintaining an in-memory data cache
-IDB can be slow due to disk, so it's a good idea to have an in-memory cache.  Note that we don't include values here, as we want to optimize our memory usage by reading in the cache in a larger batch, and at an opportune time. **We rely on the guarantee that the observer will start immediately after the transaction it was created with**.
-
-```javascript
-// let's assume our cache batches together reads once we get enough changes
-// or a timeout occurs. So we want to give it changes, and let it optionally read
-// in a bunch of data.
-var usersCache = this.cache;
-var updateUsersCache = function(changes) {
-  usersCache.addChanges(changes.records.get('users'));
-  usersCache.maybeResolveChanges(changes.transaction);
-}
-var observer = new IDBObserver(updateUsersCache);
-var txn = db.transaction('users', 'readonly');
-// Attach our observer.
-var rangesMap = new Map();
-rangesMap.put('users', [IDBKeyRange.bound(0, 1000]);
-observer.observe(
-    db, txn, {transaction: true, operations: ['add', 'put', 'delete', 'clear'], ranges: rangesMap});
-// Read initial contents of the cache.
-var os = txn.objectStore('users');
-var readRequest = os.getAll(IDBKeyRange.bound(0, 1000), 50);
-readRequest.onsuccess = function() {
-  var users = readRequest.result;
-  usersCache.addUsers(users);
-}
-txn.oncomplete = function() {
-  console.log("Cache initialized and listening");
-}
-
-```
-
-## Custom refresh logic
 If we just want to know when an object store has changed. This isn't the most efficient, but this might be the 'starting block' websites use to transition to observers, as at some point they would read the database using a transaction to update their UI.
  
 ```javascript
@@ -348,39 +198,8 @@ Issues section here: https://github.com/WICG/indexed-db-observers/issues
 # Feature Detection
 I'm not sure how we're going to do feature detection. What do you think? What is normal on the web platform?
 
-# Spec changes
-These are the approximate spec changes that would happen. See [IDBObservers.webidl](IDBObservers.webidl) for the WebIDL file.
-
-The following extra 'hidden variables' will be kept track of in the spec inside of IDBTransaction:
- * `pending_observer_construction` - a list of {uuid string, options map, callback function} tuples.
- * `change_list` - a per-object-store list of { operation string, optional key IDBKeyRange, optional value object}.  The could be done as a map of object store name to the given list.
-
-## Observer Creation
-When the observe method is called on a transaction, the given options, callback, and the transaction's object stores are given a unique id and are stored in a `pending_observer_construction` list as an `Observer`.  This id is given to the observer control, which is returned. When the transaction is completed successfuly, the Observer is added to the domain-specific list of observers.  If the transaction is not completed successfuly, this does not happen.
-
-## Change Recording
-Every change would record an entry in the `change_list` for the given object store.
-
-## Observer Calling
-When a transaction successfully completes, send the `change_list` changes to all observers that have objects stores touched by the completed transaction. When sending the changes to each observer, all changes to objects stores not observed by the observer are filtered out.
-
-## Observer Transactions
-The transactions given to the observers have one behavior difference - they cannot be used by an observer. This probably means we'll need to give them a new type - perhaps 'snapshot' or 'readonly-snapshot'.
-
-## Exceptions
-An exception is thrown in the following cases (and in the following order):
-
-1. `.observe` on a database that is closed.
-2. `.observe` on a 'versionchange' transaction.
-2. `.observe` on a transaction that is finished.
-3. `.observe` on a transaction that is not active.
-4. `.observe` on a 'snapshot' type transaction (or whatever we call it - a transaction given in an observer callback).
-5. `.observe` invalid options
-  1. `operations` is not specified
-  2. `operations' is empty
-  3. `operations` contains unknown operation types (not 'add', 'put', 'clear', or 'delete')
-  4. `ranges` contains object stores not in the observing transaction
-6. `.unobserve` on a database connection that isn't being observed.
+# Spec Changes
+See [the SPEC_CHANGES.md document](/SPEC_CHANGES.md) for informal notes about the spec changes for this feature.
 
 # Future Features
 
@@ -413,33 +232,11 @@ Note that these operations are still ordered. They are not a disjoint set.
 
 This would be an boolean option in the IDBObserverDataStoreOptions object, `culling`.
 
-### Culling Spec Changes
-Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` for the given object store in the following manner:
-
-(Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.)
-
-#### Add Operation
-Append the add operation, key and value, on end of operations list.
-
-#### Put Operation
-1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
-2. If a put is reached, delete that entry from the list.
-3. If an add is reached, replace the value of the add with the new put value and return.
-4. If a delete is reached, then append the new put at the end of operations and return.
-5. If the end of the list is reached, then append the new put at the end of operations and return.
-
-#### Delete Operation
-1. Iterate backwards in the `culled_change_list` and look for any 'add', 'put' or 'delete' change with an **intersecting key**.
-2. If a put is reached, delete that entry from the list.
-3. If an add is reached, delete that entry from the list.
-4. If a delete is reached, modify the reached delete to be a union of it's current range and the new delete range.
-5. If we reach the end of the operations list and the new delete was never combined with an older delete, append the delete to the list of operations.
-
-#### Clear Operation
-1. Clear the `culled_change_list` for that object store.
-2. Add a 'clear' operation to list.
 
 # FAQ
+## Why require `db` and not just `transaction` in `IDBObserver.observe`?
+This was done to maintain consistancy with other web platform observer features, like [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) or Why require `db` and not just `transaction` in `IDBObserver.observe`[IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API). The idea is that the first argument to `observe` will be tied to the lifetime of the observer object, where the target has a refptr to the observer and keeps it alive.
+
 ### Observing onUpgrade
 This spec does not offer a way to observe during onupgrade. Potential clients voiced they wouldn't need this feature. This doesn't seem like it's needed either, as one can just read in any data they need with the transaction used to do the upgrading.  Then the observer is guarenteed to begin at the end of that transaction (if one is added), and it wouldn't miss any chanage.
 
