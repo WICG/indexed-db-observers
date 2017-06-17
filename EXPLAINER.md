@@ -86,33 +86,30 @@ See [Exceptions](#exceptions).
 **The `options` argument - with the `operations` populated - is required**
 
 ### `options` Argument
-These options effect what gets sent to the observer callback.
 
-```js
-// Example options object.
-// Note: all default values are false (or null for ranges). The only required attribute is 'operations', and it can't be empty.
-options: {
-  transaction:  false,  // Includes a 'snapshot' transaction in the observer callback, over all the object stores we're observing.
-  values: false, // Includes the values of each row changed.
-  noRecords: false, // Removes all records ('records' is null), and just tells us when things change.
-  onlyExternal: false,  // Optionally listen for changes from only other database connections.
-  operations: ['put', 'add', 'delete', 'clear'] // Filter our change operations.
-  ranges: /* Example 'ranges' Map (psuedocode) */ { 
-    'objectStoreName1': => [IDBKeyRange.bound(0, 10), IDBKeyRange.lowerBound(100)],
-    'objectStoreName2' => [IDBKeyRange.only(0)]
-  }
-}
-```
+**`operations`** - required.
 
-More explanation of each option:
+Lists the operations that the observer wants to see. This cannot be empty. Accepted values are `put`, `add`, `delete`, and `clear`.
 
- * `operations` is required, and lists the operations that the observer wants to see. This cannot be empty. Accepted values are `put`, `add`, `delete`, and `clear`.
- * If `transaction` is specified, then this creates a readonly transaction for the objectstores that you're observing every time the observer function is called. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask.
-  * Note: This transaction CANNOT be used for another observe call. So we make it a different type - 'snapshot', which is a readonly transaction that cannot be used in an `.observe` call.
- * If `onlyExternal` is specified, then only changes from other database connections will be observed. This can be another connection on the same page, or a connection from a different browsing context (background worker, tab, etc).
- * If `value` is specified, then values for all `put` and `add` will be included for the resptive object stores. However, these values can be large depending on your use of the IndexedDB.
- * If `noRecords` is specified, then the observer will be called for all changes, but the records map will be null. This is the most lightweight option having an observer.
- * `ranges` map lets us specify the specific IDBKeyRanges that we want to observer, per object store.
+**`transaction`** - optional
+ 
+Changes always contain a readonly transaction for the object stores being observed. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask. *Note: This transaction CANNOT be used for another observe call. So we make it a different type - 'snapshot', which is a readonly transaction that cannot be used in an `.observe` call.*
+
+**`onlyExternal`** - optional
+
+Only changes from other database connections will be observed. This can be another connection on the same page, or a connection from a different browsing context (background worker, tab, etc).
+
+**`value`** - optional
+
+Values for all `put` and `add` will be included for the resptive object stores. However, **these values can be large depending on your use of the IndexedDB, so use cautiously.**
+
+**`noRecords`** - optional
+
+Changes will never contain a records map. This is the most lightweight option having an observer.
+
+**`ranges` map** - optional
+
+Specifies the exact IDBKeyRanges to observe, per object store. Changes outside of these ranges will not trigger an observe callback.
 
 ## IDBObserver.unobserve(database)
 This stops observation of the given target database connection. This will stop all `observe` registrations to the given database connection. An exception is thrown if we aren't observing that connection (see [Exceptions](#exceptions))
