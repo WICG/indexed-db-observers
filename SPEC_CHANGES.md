@@ -50,7 +50,9 @@ Non-idl-possible exceptions are thrown in the following cases (and in the follow
 4. `.observe` on a 'snapshot' type transaction (or whatever we call it - a transaction given in an observer callback).
 6. `.unobserve` on a database connection that isn't being observed.
 
-### Culling Spec Changes
+# Culling Spec Changes
+This is a possible future feature, referenced in the main Explainer.
+
 Whenever a change succeeds in a transaction, it adds it to a `culled_change_list` for the given object store in the following manner:
 
 (Note: `putAll` and `addAll` operations could be seperated into individual put and add changes.)
