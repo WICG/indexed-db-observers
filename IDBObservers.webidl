@@ -18,9 +18,9 @@ enum IDBObserverChangeRecordType {
 };
 
 dictionary IDBObserveOptions {
-  boolean transaction = false;
-  boolean values = false;
-  boolean noRecords = false;
+  boolean includeTransaction = false;
+  boolean includeValues = false;
+  boolean excludeRecords = false;
   boolean onlyExternal = false;
   // This is a whitelist of operations we want to observe. This cannot be empty.
   required sequence<IDBObserverChangeRecordType> operations;
