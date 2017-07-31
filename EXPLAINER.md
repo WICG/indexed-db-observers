@@ -11,9 +11,9 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
 - [Example Uses](#example-uses)
 - [interface IDBObserver](#interface-idbobserver)
   - [new IDBObserver(callback)](#new-idbobservercallback)
-  - [IDBObserver.observe(...)](#idbobserverobserve)
+  - [IDBObserver's observe(...)](#idbobservers-observe)
     - [`options` Argument](#options-argument)
-  - [IDBObserver.unobserve(database)](#idbobserverunobservedatabase)
+  - [IDBObserver's unobserve(database)](#idbobservers-unobservedatabase)
   - [Callback Function](#callback-function)
     - [`changes` Argument](#changes-argument)
     - [`records`](#records)
@@ -75,7 +75,7 @@ The interface [`IDBObserver`](/IDBObservers.webidl) is added. This object owns t
 ## new IDBObserver(callback)
 This creates the observer object with the callback. All observations initated with this object will use the given callback.
 
-## IDBObserver.observe(...)
+## IDBObserver's observe(...)
 The function [`IDBObserver.observe(database, transaction, options)`](/IDBObservers.webidl) is added.
 
 This function starts observation on the target database connection using the given transaction. We start observing the object stores that the given transaction is operating on (the object stores returned by `IDBTransaction.objectStoreNames`). Observation will start at the end of the given transaction, and the observer's callback function will be called at the end of every transaction that operates on the chosen object stores until either the database connection is closed or `IDBObserver.unobserve` is called with the target database.
@@ -93,8 +93,8 @@ See [Exceptions](#exceptions).
 Lists the operations that the observer wants to see. This cannot be empty. Accepted values are `put`, `add`, `delete`, and `clear`.
 
 **`includeTransaction`** - optional
- 
-Changes always contain a readonly transaction for the object stores being observed. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask. *Note: This transaction CANNOT be used for another observe call. So we make it a different type - 'snapshot', which is a readonly transaction that cannot be used in an `.observe` call.*
+
+A transaction with a new mode - `snapshot` - and a scope of the object stores being observered is always included in the changes argument. This transaction is read-only, and provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask. *Note: This transaction CANNOT be used for another observe call.*
 
 **`onlyExternal`** - optional
 
@@ -112,7 +112,7 @@ Changes will never contain a records map. This is the most lightweight option ha
 
 Specifies the exact IDBKeyRanges to observe, per object store. Changes outside of these ranges will not trigger an observe callback.
 
-## IDBObserver.unobserve(database)
+## IDBObserver's unobserve(database)
 This stops observation of the given target database connection. This will stop all `observe` registrations to the given database connection. An exception is thrown if we aren't observing that connection (see [Exceptions](#exceptions))
 
 ## Callback Function
