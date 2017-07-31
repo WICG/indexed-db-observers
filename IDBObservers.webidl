@@ -25,21 +25,20 @@ dictionary IDBObserveOptions {
   // This is a whitelist of operations we want to observe. This cannot be empty.
   required sequence<IDBObserverChangeRecordType> operations;
   
-  // This is a Map<String, sequence<IDBKeyRange>>, which filter the observation by
+  // This is a Map<DOMString, sequence<IDBKeyRange>>, which filter the observation by
   // object store to the given key ranges.
-  optional any ranges
+  optional any ranges;
 };
 
-interface IDBObserverChanges {
+dictionary IDBObserverChanges {
     readonly IDBDatabase db;
     // Transaction contains the same object stores as the transaction on which IDBTransaction.observe was called.
     readonly IDBTransaction transaction;
-    // This is the javascript Map<String, sequence<IDBObserverChangeRecord>>,
-    // where the key is the object store name.
-    readonly any records;
+    // Holds all changes on a per-object-store basis. Key is the object store name.
+    readonly record<DOMString, sequence<IDBObserverChangeRecord>> records;
 };
 
-interface IDBObserverChangeRecord {
+dictionary IDBObserverChangeRecord {
     readonly IDBObserverChangeRecordType type;
     // When the record is a "delete" type, this is an IDBKeyRange.
     readonly any key;
