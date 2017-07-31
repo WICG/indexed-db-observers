@@ -25,7 +25,7 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
 - [Feature Detection](#feature-detection)
 - [Spec changes](#spec-changes)
 - [Future Features](#future-features)
-  - [Culling](#culling)
+  - [Coalescing](#Coalescing)
 - [FAQ](#faq)
     - [Why require `db` and not just `transaction` in `IDBObserver.observe`](#why-require-db-and-not-just-transaction-in-idbobserverobserve)
     - [Observing onUpgrade](#observing-onupgrade)
@@ -194,22 +194,22 @@ https://dmurph.github.io/indexed-db-observers/
 Issues section here: https://github.com/WICG/indexed-db-observers/issues
 
 # Feature Detection
-I'm not sure how we're going to do feature detection. What do you think? What is normal on the web platform?
+For new features like coalescing, we don't have a good way for feature detection. Hopefully [heycam/webidl#107](https://github.com/heycam/webidl/issues/107) will pan out - that looks like it would work for this as well.
 
 # Spec Changes
 See [the SPEC_CHANGES.md document](/SPEC_CHANGES.md) for informal notes about the spec changes for this feature.
 
 # Future Features
 
-## Culling
-The changes given to the observer could be culled. This eliminated changes that are overwritten in the same transaction or redundant. Here are some examples:
+## Coalescing
+The changes given to the observer could be coalesced. This eliminated changes that are overwritten in the same transaction or redundant. Here are some examples:
 
  1. add 'a', 1
  2. add 'b', 2
  3. put 'putA', 1
  4. delete 2
 
-These changes can **culled** to simply be
+These changes can **coalesced** to simply be
 
  1. add 'putA', 1
 
@@ -221,14 +221,14 @@ In addition, deletes are combined when applicable:
  4. delete [5, 6)
  5. delete [6, 7)
 
-This is culled to:
+This is coalesced to:
 
  1. delete [0, 7)
  2. put '1' 1
 
 Note that these operations are still ordered. They are not a disjoint set.
 
-This would be an boolean option in the IDBObserverDataStoreOptions object, `culling`.
+This could be an boolean option in the IDBObserverDataStoreOptions object, `coalescing`.
 
 
 # FAQ
@@ -260,6 +260,13 @@ Another tool is the `includeTransaction` option which can be used to read in an 
 Object store objects are only valid when retrieved from transactions. The only relevant information of that object outside of the transaction is the name of the object store. Since the transaction is optional for the observation callback, we aren't guaranteed to be able to create the IDBObjectStore object for the observer.  However, it is easy for the observer to retrieve this object by
  1. Specifying `transaction` in the options map
  2. calling changes.transaction.objectStore(name)
+
+### Why are changes in a map instead of a flat list?
+This is done to avoid data duplication of the object store name. This can be changed. Cons of the current approach:
+* Impossible to determine the full ordering of transaction operations across object stores.
+* Two layers to get to information, slightly more complex.
+
+See Issue #49.
 
 ### Why not use ES6 Proxies?
 The two main reasons are:
