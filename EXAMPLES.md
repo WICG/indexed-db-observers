@@ -33,7 +33,7 @@ var observer = new IDBObserver(updateUICallback);
 // Create or transaction for both reading the table and attaching the observer.
 var txn = db.transaction('users', 'readonly');
 // We'll start seeing changes after 'txn' is complete.
-observer.observe(db, txn, { values: true, operations: ['add', 'put', 'delete', 'clear'] });
+observer.observe(db, txn, { includeValues: true, operations: ['add', 'put', 'delete', 'clear'] });
 // Now we read in our initial state for the component.
 var usersTable = txn.objectStore('users');
 var request = usersTable.getAll();
@@ -103,7 +103,7 @@ var observer = new IDBObserver(function(changes) {
 
 // Attach the observer to the transaction.
 observer.observe(db, startupTxn,
-    { onlyExternal: true, values: true, operations: ['add', 'put'] });
+    { onlyExternal: true, includeValues: true, operations: ['add', 'put'] });
 
 startupTxn.oncomplete = function() {
   console.log('Observer is attached and we are syncing changes');
@@ -128,7 +128,7 @@ var txn = db.transaction('users', 'readonly');
 var rangesMap = new Map();
 rangesMap.put('users', [IDBKeyRange.bound(0, 1000]);
 observer.observe(
-    db, txn, {transaction: true, operations: ['add', 'put', 'delete', 'clear'], ranges: rangesMap});
+    db, txn, {includeTransaction: true, operations: ['add', 'put', 'delete', 'clear'], ranges: rangesMap});
 // Read initial contents of the cache.
 var os = txn.objectStore('users');
 var readRequest = os.getAll(IDBKeyRange.bound(0, 1000), 50);
@@ -156,5 +156,5 @@ var refreshDataCallback = function(changes) {
 var observer = new IDBObserver(refreshDataCallback);
 observer.observe(
     db, db.transact('users', 'readonly'),
-    { noRecords: true, transaction: true, operations: ['add', 'put', 'delete', 'clear'] });
+    { excludeRecords: true, includeTransaction: true, operations: ['add', 'put', 'delete', 'clear'] });
 ```
