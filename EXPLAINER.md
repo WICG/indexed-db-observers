@@ -31,7 +31,8 @@ Documentation & FAQ of observers. See accompanying WebIDL file [IDBObservers.web
     - [Observing onUpgrade](#observing-onupgrade)
     - [Why not expose 'old' values?](#why-not-expose-old-values)
     - [Why not issue 'deletes' instead a 'clear'?](#why-not-issue-deletes-instead-a-clear)
-    - [How do I know I have a true state?](#how-do-i-know-i-have-a-true-state)
+    - [What is a true/consistent state?](#what-is-a-trueconsistent-state)
+    - [How do I know I have a true state?](#how-do-i-know-i-have-a-true-or-consistent-state)
     - [Why only populate the objectStore name in the `changes` records map?](#why-only-populate-the-objectstore-name-in-the-changes-records-map)
     - [Why not use ES6 Proxies?](#why-not-use-es6-proxies)
     - [What realm are the change objects coming from?](#what-realm-are-the-change-objects-coming-from)
@@ -91,7 +92,7 @@ See [Exceptions](#exceptions).
 
 Lists the operations that the observer wants to see. This cannot be empty. Accepted values are `put`, `add`, `delete`, and `clear`.
 
-**`transaction`** - optional
+**`includeTransaction`** - optional
  
 Changes always contain a readonly transaction for the object stores being observed. This transaction provides a snapshot of the post-commit state. This does not go through the normal transaction queue, but can delay subsequent transactions on the observer's object stores. The transaction is active during the callback, and becomes inactive at the end of the callback task or microtask. *Note: This transaction CANNOT be used for another observe call. So we make it a different type - 'snapshot', which is a readonly transaction that cannot be used in an `.observe` call.*
 
@@ -99,11 +100,11 @@ Changes always contain a readonly transaction for the object stores being observ
 
 Only changes from other database connections will be observed. This can be another connection on the same page, or a connection from a different browsing context (background worker, tab, etc).
 
-**`value`** - optional
+**`includeValues`** - optional
 
 Values for all `put` and `add` will be included for the resptive object stores. However, **these values can be large depending on your use of the IndexedDB, so use cautiously.**
 
-**`noRecords`** - optional
+**`excludeRecords`** - optional
 
 Changes will never contain a records map. This is the most lightweight option having an observer.
 
@@ -130,7 +131,7 @@ changes: {
   transaction: <object>, // A 'snapshot' transaction over the object stores that
                          // this observer is listening to. This is populated when
                          // 'transaction' is set in the options.
-  records: Map<string, Array<object>> // The changes, outlined below.
+  records: record<DOMString, sequence<object>> // The changes per object store, outlined below.
 }
 ```
 (see [IDBObservers.webidl](IDBObservers.webidl))
@@ -243,10 +244,17 @@ IndexedDB was designed to allow range delete optimizations so that `delete [0,10
 ### Why not issue 'deletes' instead a 'clear'?
 Following from the answer above, IndexedDB's API is designed to allow mass deletion optimization, and in order to have the 'deletes instead of clear' functionality, this would involve expensive read operations within the database.  If an observer needed to know exactly what was deleted, they can maintain their own state of the keys that they care about.
 
-### How do I know I have a true state?
-One might need to guarantee that their observer can see a true, consistent state of the world. This is guarenteed by the way the observer is created within a transaction. When that transaction completes, the observer will be notified for all subsequent transations. Any initial state the observer needs can be read in the initial transaction.
+### What is a true/consistent state?
+This is an important concept, and is the reason a lot of the API is the way it is.
 
-One can also specify the `transaction` option. This means that every observation callback will receive a readonly transaction for the object store/s that it is observing. It can then use this transaction to see the true state of the world. This transaction will take place immediately after the transaction in which the given changes were performed is completed.
+* the spec needs to guarantee you can NOT miss any changes if you wish to do so
+* the spec needs to guarantee you can NOT see duplicate changes
+* if the observer only wants keys, the spec needs to provide a way to read the values or the whole world state at the time of the change, and NOT include any changes afterwards.
+
+### How do I know I have a true or consistent state?
+To achieve an initial world state, one would use the transaction that is used to create the observer to read in all of the initial values that they care about. Then all changes after this transaction is committed are guarenteed to be reported to the observer without duplicates.
+
+Another tool is the `includeTransaction` option which can be used to read in an unchanging state of the world during the observer callback. This transaction will take place immediately after the transaction in which the given changes were performed is completed.
 
 ### Why only populate the objectStore name in the `changes` records map?
 Object store objects are only valid when retrieved from transactions. The only relevant information of that object outside of the transaction is the name of the object store. Since the transaction is optional for the observation callback, we aren't guaranteed to be able to create the IDBObjectStore object for the observer.  However, it is easy for the observer to retrieve this object by
