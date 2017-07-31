@@ -233,7 +233,7 @@ This would be an boolean option in the IDBObserverDataStoreOptions object, `cull
 
 # FAQ
 ## Why require `db` and not just `transaction` in `IDBObserver.observe`?
-This was done to maintain consistancy with other web platform observer features, like [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) or Why require `db` and not just `transaction` in `IDBObserver.observe`[IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API). The idea is that the first argument to `observe` will be tied to the lifetime of the observer object, where the target has a refptr to the observer and keeps it alive.
+This was done to maintain consistancy with other web platform observer features, like [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) or [IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API). The idea is that the first argument to `observe` will be tied to the lifetime of the observer object, where the target has a refptr to the observer and keeps it alive.
 
 ### Observing onUpgrade
 This spec does not offer a way to observe during onupgrade. Potential clients voiced they wouldn't need this feature. This doesn't seem like it's needed either, as one can just read in any data they need with the transaction used to do the upgrading.  Then the observer is guarenteed to begin at the end of that transaction (if one is added), and it wouldn't miss any chanage.
